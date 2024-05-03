@@ -46,8 +46,8 @@ private class RecursiveCallToDangerousMethod extends Callable {
     and 
     
     (
-     this instanceof CallsDangerousMethod or
-    exists(RecursiveCallToDangerousMethod unsafe | this.polyCalls(unsafe))
+      this instanceof CallsDangerousMethod or
+      exists(RecursiveCallToDangerousMethod unsafe | this.polyCalls(unsafe))
     ) 
   }
 
@@ -76,11 +76,21 @@ private class Sanitizer extends Callable {
 
 query predicate edges(ControlFlowNode node1, ControlFlowNode node2) {
     (node1.(MethodAccess).getMethod().getAPossibleImplementation() = node2 and node2 instanceof RecursiveCallToDangerousMethod) or 
-    (node2.(MethodAccess).getEnclosingCallable() = node1 and node1 instanceof RecursiveCallToDangerousMethod) 
+    (node2.(MethodAccess).getEnclosingCallable() = node1 and node1 instanceof RecursiveCallToDangerousMethod)
 }
 
 predicate hasCalls(RecursiveCallToDangerousMethod c0, RecursiveCallToDangerousMethod c1) {
     c0.polyCalls(c1) or exists(RecursiveCallToDangerousMethod unsafe | c0.polyCalls(unsafe) and hasCalls(unsafe, c1))
+}
+
+DangerousExpression findGadgetChain(Callable c0, Callable c1){
+  // find chain
+  c0 instanceof RecursiveCallToDangerousMethod and
+  c1 instanceof RecursiveCallToDangerousMethod and
+  exists(DangerousExpression de |  de.getEnclosingCallable() = c1 and 
+    hasCalls(c0, c1) and
+    result = de
+  )
 }
 
 /*
@@ -115,8 +125,12 @@ c0 instanceof Source
 select  c0, ma 
 */
 
-from RecursiveCallToDangerousMethod c0,  RecursiveCallToDangerousMethod c1, DangerousExpression de
-where de.getEnclosingCallable() = c1 and
-c0 instanceof Source and
-hasCalls(c0, c1)
+from Callable c0,  Callable c1, DangerousExpression de
+where c0 instanceof Source and
+
+// https://www.veracode.com/blog/research/exploiting-jndi-injections-java
+// uncomment to find JNDI based gadget 
+// where c0 instanceof JNDISource and  
+
+de = findGadgetChain(c0, c1)
 select c0, c0, c1, "recursive call to dangerous expression $@", de, de.toString()
