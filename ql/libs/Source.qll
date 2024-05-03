@@ -131,6 +131,14 @@ class GroovyMethod extends Callable {
     }
 }
 
+// we can call a getter thanks to CommonBeanUtils1
+// https://mogwailabs.de/en/blog/2023/04/look-mama-no-templatesimpl/
+class CustomGetterMethod extends Callable { 
+    CustomGetterMethod(){
+        this.getName().matches("get%") and 
+        this.hasNoParameters()
+    }
+}
 
 class Source extends Callable{
     Source(){
@@ -144,7 +152,16 @@ class Source extends Callable{
             this instanceof ObjectInputValidationMethod or
             this instanceof InvocationHandlerMethod or
             this instanceof MethodHandlerMethod or
-            this instanceof GroovyMethod
+            this instanceof GroovyMethod or
+            this instanceof CustomGetterMethod
         )
+    }
+}
+
+class JNDISource extends Callable{
+    JNDISource(){
+        this.getNumberOfParameters() = 1 and
+        this.getParameterType(0) instanceof TypeString and
+        not this.isStatic()
     }
 }
