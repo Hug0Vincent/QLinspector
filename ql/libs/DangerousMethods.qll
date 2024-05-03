@@ -66,8 +66,8 @@ class OGNL extends RefType {
   }
 }
 
-class DriverManager extends RefType {
-  DriverManager(){hasQualifiedName("java.sql", "DriverManager")}
+class DataSource extends RefType {
+  DataSource(){hasQualifiedName("javax.sql", "DataSource")}
 }
 
 class ExpressionEvaluationMethod extends Method {
@@ -227,9 +227,9 @@ class OGNLEvaluation extends Callable {
   }
 }
 
-class DriverManagerMethods extends Callable {
-  DriverManagerMethods(){
-    this.getDeclaringType().getASupertype*() instanceof DriverManager and hasName("getConnection")
+class DataSourceMethods extends Callable {
+  DataSourceMethods(){
+    this.getDeclaringType().getASupertype*() instanceof DataSource and hasName("getConnection")
   }
 }
 
@@ -254,7 +254,7 @@ class DangerousMethod extends Callable {
     this instanceof ClassLoader or
     this instanceof ContextLookup or
     this instanceof OGNLEvaluation or
-    this instanceof DriverManagerMethods or
+    this instanceof DataSourceMethods or
     this instanceof JavaClassMethods or
     
     //this instanceof SpringBeansMethods
