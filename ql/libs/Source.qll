@@ -45,6 +45,13 @@ class ObjectType extends RefType {
   ObjectType() { hasName("java.lang.Object") }
 }
 
+
+class ObjectFactoryType extends RefType {
+    ObjectFactoryType() { 
+        getASupertype*().hasQualifiedName("javax.naming.spi", "ObjectFactory")
+     }
+}
+
 class MapSource extends Method {
     MapSource() {
       getDeclaringType().getASupertype*() instanceof MapClass and
@@ -106,6 +113,7 @@ class ObjectMethod extends Callable {
     }
 }
 
+// Cf CommonsCollections1
 class InvocationHandlerMethod extends Callable {
     InvocationHandlerMethod(){
         this.getDeclaringType().getASupertype*() instanceof InvocationHandler and
@@ -135,33 +143,51 @@ class GroovyMethod extends Callable {
 // https://mogwailabs.de/en/blog/2023/04/look-mama-no-templatesimpl/
 class CustomGetterMethod extends Callable { 
     CustomGetterMethod(){
-        this.getName().matches("get%") and 
-        this.hasNoParameters()
+        this.hasNoParameters() and
+        this.getName().matches("get%")
     }
 }
 
-class Source extends Callable{
+// Search for new ObjectFactories to replace BeanFactory
+class ObjectFactoryMethod extends Callable {
+    ObjectFactoryMethod(){
+        this.getDeclaringType() instanceof ObjectFactoryType and
+        this.hasName("getObjectInstance")
+    }
+}
+
+class Source extends Callable {
     Source(){
-        getDeclaringType().getASupertype*() instanceof TypeSerializable and (
-            this instanceof MapSource or 
-            this instanceof SerializableMethods or
-            this instanceof Equals or
-            this instanceof HashCode or
-            this instanceof Compare or
-            this instanceof ExternalizableMethod or 
-            this instanceof ObjectInputValidationMethod or
-            this instanceof InvocationHandlerMethod or
-            this instanceof MethodHandlerMethod or
-            this instanceof GroovyMethod or
-            this instanceof CustomGetterMethod
-        )
+        getDeclaringType().getASupertype*() instanceof TypeSerializable
     }
 }
 
-class JNDISource extends Callable{
-    JNDISource(){
+class GadgetSource extends Source {
+    GadgetSource(){
+        this instanceof MapSource or 
+        this instanceof SerializableMethods or
+        this instanceof Equals or
+        this instanceof HashCode or
+        this instanceof Compare or
+        this instanceof ExternalizableMethod or 
+        this instanceof ObjectInputValidationMethod or
+        this instanceof InvocationHandlerMethod or
+        this instanceof MethodHandlerMethod or
+        this instanceof GroovyMethod
+    }
+}
+
+// https://www.veracode.com/blog/research/exploiting-jndi-injections-java
+class BeanFactorySource extends Callable {
+    BeanFactorySource(){
         this.getNumberOfParameters() = 1 and
         this.getParameterType(0) instanceof TypeString and
         not this.isStatic()
+    }
+}
+
+class CommonsBeanutilsSource extends Source {
+    CommonsBeanutilsSource(){
+        this instanceof CustomGetterMethod
     }
 }
