@@ -52,6 +52,9 @@ class SpringframeworkExpression extends RefType {
   SpringframeworkExpression() { this.hasQualifiedName("org.springframework.expression", "Expression") }
 }
 
+class H2JdbcConnectionType extends RefType {
+  H2JdbcConnectionType() { this.hasQualifiedName("org.h2.jdbc", "JdbcConnection") }
+}
 
 class OGNL extends RefType {
   OGNL(){
@@ -239,6 +242,11 @@ class JavaClassMethods extends Callable {
   }
 }
 
+class H2Methods extends Callable {
+  H2Methods(){
+    (this instanceof Constructor and this.getDeclaringType() instanceof H2JdbcConnectionType)
+  }
+}
 
 class DangerousMethod extends Callable {
   DangerousMethod(){
@@ -256,10 +264,10 @@ class DangerousMethod extends Callable {
     this instanceof OGNLEvaluation or
     this instanceof DataSourceMethods or
     this instanceof JavaClassMethods or
+    this instanceof H2Methods or
     
     //this instanceof SpringBeansMethods
     this instanceof System
   }
 
 }
-
