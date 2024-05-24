@@ -1,5 +1,9 @@
 import java
 
+/**
+ * RefType
+ */
+
 class JakartaType extends RefType {
   JakartaType() { getPackage().hasName(["javax.el", "jakarta.el"]) }
 }
@@ -9,7 +13,7 @@ class ELProcessor extends JakartaType {
 }
 
 class NioFiles extends RefType {
-  NioFiles() { hasName("java.nio.file.Files") }
+  NioFiles() { hasQualifiedName("java.nio.file", "Files")}
 }
 
 class ExpressionFactory extends JakartaType {
@@ -56,8 +60,8 @@ class H2JdbcConnectionType extends RefType {
   H2JdbcConnectionType() { this.hasQualifiedName("org.h2.jdbc", "JdbcConnection") }
 }
 
-class OGNL extends RefType {
-  OGNL(){
+class OGNLTypes extends RefType {
+  OGNLTypes(){
     hasQualifiedName("ognl", "Ognl") or
     hasQualifiedName("ognl", "Node") or 
     hasQualifiedName("ognl.enhance", "ExpressionAccessor") or 
@@ -69,34 +73,92 @@ class OGNL extends RefType {
   }
 }
 
-class DataSource extends RefType {
-  DataSource(){hasQualifiedName("javax.sql", "DataSource")}
+class DataSourceType extends RefType {
+  DataSourceType(){hasQualifiedName("javax.sql", "DataSource")}
 }
 
-class ExpressionEvaluationMethod extends Method {
-    ExpressionEvaluationMethod(){
-        ( getDeclaringType().getASupertype*() instanceof ValueExpression and
-        hasName(["getValue", "setValue"]))
-        or
-        (getDeclaringType().getASupertype*() instanceof MethodExpression and
-        hasName("invoke") )
-        or
-        (getDeclaringType().getASupertype*() instanceof LambdaExpression and
-        hasName("invoke") )
-        or
-        (getDeclaringType().getASupertype*() instanceof ELProcessor and
-        hasName(["eval", "getValue", "setValue"]) )
-        or
-        (getDeclaringType().getASupertype*() instanceof ELProcessor and
-        hasName("setVariable"))
-        or 
-        (getDeclaringType().getASupertype*() instanceof SpringframeworkExpression and
-        hasName(["getValue", "getValueTypeDescriptor", "getValueType", "setValue"]))
+class DriverManagerType extends RefType {
+  DriverManagerType(){hasQualifiedName("javax.sql", "DriverManager")}
+}
+
+class JexlRefType extends RefType {
+  JexlRefType() {
+    this.getPackage().hasName(["org.apache.commons.jexl2", "org.apache.commons.jexl3"])
+  }
+}
+
+class JexlBuilder extends JexlRefType {
+  JexlBuilder() { this.hasName("JexlBuilder") }
+}
+
+class JexlEngine extends JexlRefType {
+  JexlEngine() { this.hasName("JexlEngine") }
+}
+
+class JxltEngine extends JexlRefType {
+  JxltEngine() { this.hasName("JxltEngine") }
+}
+
+class UnifiedJexl extends JexlRefType {
+  UnifiedJexl() { this.hasName("UnifiedJEXL") }
+}
+
+class StringSubstitutorType extends RefType {
+  StringSubstitutorType() { this.hasQualifiedName("org.apache.commons.text", "StringSubstitutor") }
+}
+
+/**
+ * Methods or constructors
+ */
+
+class ExpressionEvaluationMethods extends Method {
+    ExpressionEvaluationMethods(){
+        this instanceof ValueExpressionMethods or
+        this instanceof MethodExpressionMethods or
+        this instanceof LambdaExpressionMethods or
+        this instanceof ELProcessorMethods or
+        this instanceof SpringframeworkExpressionMethods or
+        this instanceof JexlMethods
     }
 }
 
-class ReflectionInvocationMethod extends Method {
-    ReflectionInvocationMethod(){
+class ValueExpressionMethods extends Method {
+  ValueExpressionMethods(){
+    this.getDeclaringType().getASupertype*() instanceof ValueExpression and
+    hasName(["getValue", "setValue"])
+  }
+}
+
+class MethodExpressionMethods extends Method {
+  MethodExpressionMethods(){
+    this.getDeclaringType().getASupertype*() instanceof MethodExpression and
+    hasName("invoke")
+  }
+}
+
+class LambdaExpressionMethods extends Method {
+  LambdaExpressionMethods(){
+    this.getDeclaringType().getASupertype*() instanceof LambdaExpression and
+    hasName("invoke")
+  }
+}
+
+class ELProcessorMethods extends Method {
+  ELProcessorMethods(){
+    this.getDeclaringType().getASupertype*() instanceof ELProcessor and
+    hasName(["eval", "getValue", "setValue", "setVariable"])
+  }
+}
+
+class SpringframeworkExpressionMethods extends Method {
+  SpringframeworkExpressionMethods(){
+    this.getDeclaringType().getASupertype*() instanceof SpringframeworkExpression and
+    hasName(["getValue", "getValueTypeDescriptor", "getValueType", "setValue"])
+  }
+}
+
+class ReflectionInvocationMethods extends Method {
+    ReflectionInvocationMethods(){
         hasQualifiedName("java.lang.reflect", "Method", "invoke")
     }
 }
@@ -123,10 +185,10 @@ class ProcessBuilder extends Constructor {
 class Files extends Method {
   Files(){
     getDeclaringType().getASupertype*() instanceof NioFiles and (
-      hasName("newInputStream") or 
-      hasName("newOutputStream") or 
-      hasName("newBufferedReader") or 
-      hasName("newBufferedWriter")
+      hasName([
+              "readAllBytes", "readAllLines", "readString", "lines", "newBufferedReader",
+              "newBufferedWriter", "newInputStream", "newOutputStream", "newByteChannel"
+            ])
     )
 
   }
@@ -144,7 +206,14 @@ class FileOutputStream extends Constructor {
   }
 }
 
-// exploring new path, but yield too many false positive
+class FilesMethods extends Callable {
+  FilesMethods(){
+    this instanceof Files or
+    this instanceof FileInputStream or 
+    this instanceof FileOutputStream
+  }
+}
+
 class System extends Method {
   System(){
     hasQualifiedName("java.lang", "System", "setProperty") or
@@ -161,9 +230,10 @@ class EvalScriptEngine extends Method {
 class ClassLoaderMethods extends Callable {
   ClassLoaderMethods(){
     this.getDeclaringType().getASupertype*() instanceof ClassLoaderType and (
-      hasName("ClassLoader") or
-      hasName("defineClass") or
-      hasName("loadClass")
+      this instanceof Constructor or
+      hasName("defineClass")
+      // false positive
+      //hasName("loadClass")
     )
     
   }
@@ -173,9 +243,11 @@ class ClassLoaderMethods extends Callable {
 class URLClassLoaderMethods extends Callable {
   URLClassLoaderMethods(){
     this.getDeclaringType().getASupertype*() instanceof URLClassLoader and (
+        this instanceof Constructor or
         hasName("newInstance") or 
-        hasName("URLClassLoader") or
-        hasName("MLet")
+        hasName("getMBeansFromURL") or 
+        hasName("readExternal") or
+        hasName("addURL")
       )
   }
 }
@@ -221,18 +293,29 @@ class SpringBeansMethods extends Callable {
   }
 }
 
-class OGNLEvaluation extends Callable {
-  OGNLEvaluation(){
-
-    exists(RefType t | this.getDeclaringType().getASupertype*() = t and 
-    t instanceof OGNL and 
-    this.hasName(["getValue", "findValue","setValue","callMethod","get","set"]))
+class OGNLEvaluationMethods extends Callable {
+  OGNLEvaluationMethods(){
+    this.getDeclaringType().getASupertype*() instanceof OGNLTypes and
+    this.hasName(["getValue", "findValue","setValue","callMethod","get","set"])
   }
 }
 
 class DataSourceMethods extends Callable {
   DataSourceMethods(){
-    this.getDeclaringType().getASupertype*() instanceof DataSource and hasName("getConnection")
+    this.getDeclaringType().getASupertype*() instanceof DataSourceType and hasName("getConnection")
+  }
+}
+
+class DriverManagerMethods extends Callable {
+  DriverManagerMethods(){
+    this.getDeclaringType() instanceof DriverManagerType and hasName("getConnection")
+  }
+}
+
+// not sure about this one
+class C3P0ComboPoolDataSourceMethods extends Callable {
+  C3P0ComboPoolDataSourceMethods(){
+    hasQualifiedName("com.mchange.v2.c3p0", "AbstractComboPooledDataSource", "setJdbcUrl")
   }
 }
 
@@ -248,26 +331,137 @@ class H2Methods extends Callable {
   }
 }
 
+class XMLDecoderMethods extends Callable {
+  XMLDecoderMethods(){hasQualifiedName("java.beans", "XMLDecoder", "readObject")}
+}
+
+class SnakeYAMLMethods extends Callable {
+  SnakeYAMLMethods(){
+    hasQualifiedName("org.yaml.snakeyaml", "Yaml", "load") or
+    hasQualifiedName("org.yaml.snakeyaml", "Yaml", "loadAll")
+  }
+}
+
+class KyroMethods extends Callable {
+  KyroMethods(){
+    hasQualifiedName("com.esotericsoftware.kryo", "Kryo", "readObject")
+  }
+}
+
+/**
+ * https://semgrep.dev/docs/cheat-sheets/java-xxe
+ */
+class XXEMethods extends Callable {
+  XXEMethods(){
+    hasQualifiedName("javax.xml.parser", "DocumentBuilder", "parse") or
+    hasQualifiedName("org.jdom2.input", "SAXBuilder", "build") or
+    hasQualifiedName("javax.xml.parsers", "SAXParser", "parse") or
+    hasQualifiedName("org.dom4j.io", "SAXReader", "read") or
+    hasQualifiedName("javax.xml.transform", "Transformer", "transform") or
+    hasQualifiedName("javax.xml.validation", "SchemaFactory", "newSchema") or
+    hasQualifiedName("javax.xml.validation", "Validator", "validate") or
+    (this.getDeclaringType().getASubtype*().hasQualifiedName("org.xml.sax", "XMLReader") and this.hasName("parse"))
+
+  }
+}
+
+/**
+ * A method that creates a JEXL script.
+ */
+class CreateJexlScriptMethod extends Method {
+  CreateJexlScriptMethod() {
+    this.getDeclaringType() instanceof JexlEngine and this.hasName("createScript")
+  }
+}
+
+/**
+ * A method that creates a JEXL template.
+ */
+class CreateJexlTemplateMethod extends Method {
+  CreateJexlTemplateMethod() {
+    (
+      this.getDeclaringType() instanceof JxltEngine or
+      this.getDeclaringType() instanceof UnifiedJexl
+    ) and
+    this.hasName("createTemplate")
+  }
+}
+
+/**
+ * A method that creates a JEXL expression.
+ */
+class CreateJexlExpressionMethod extends Method {
+  CreateJexlExpressionMethod() {
+    (this.getDeclaringType() instanceof JexlEngine or this.getDeclaringType() instanceof JxltEngine) and
+    this.hasName("createExpression")
+    or
+    this.getDeclaringType() instanceof UnifiedJexl and this.hasName("parse")
+  }
+}
+
+/**
+ * Jexl idea stolen here: 
+ * https://github.com/github/codeql/blob/main/java/ql/lib/semmle/code/java/security/JexlInjectionQuery.qll
+ * https://x.com/pwntester/status/1582321752566161409
+ */
+class JexlMethods extends Method {
+  JexlMethods(){
+    this instanceof CreateJexlScriptMethod or
+    this instanceof CreateJexlTemplateMethod or
+    this instanceof CreateJexlExpressionMethod
+  }
+}
+
+/**
+ * Text4Shell
+ * https://securitylab.github.com/advisories/GHSL-2022-018_Apache_Commons_Text/
+ */
+class StringSubstitutorMethods extends Method {
+  StringSubstitutorMethods(){
+    this.getDeclaringType() instanceof StringSubstitutorType and
+    this.hasName(["replace", "replaceIn"])
+  }
+}
+
+class QuickTestMethods extends Callable {
+  QuickTestMethods(){
+    this.getDeclaringType().getASupertype*() instanceof TypeSerializable and (
+      hasName("writeObject")
+  )
+  }
+}
+
 class DangerousMethod extends Callable {
   DangerousMethod(){
-    this instanceof ExpressionEvaluationMethod or
-    this instanceof ReflectionInvocationMethod or
+    this instanceof ExpressionEvaluationMethods or
+    this instanceof ReflectionInvocationMethods or
     this instanceof RuntimeExec or
     this instanceof URL or
     this instanceof ProcessBuilder or 
-    this instanceof Files or
-    this instanceof FileInputStream or 
-    this instanceof FileOutputStream or
+    this instanceof FilesMethods or
     this instanceof EvalScriptEngine or
     this instanceof ClassLoader or
     this instanceof ContextLookup or
-    this instanceof OGNLEvaluation or
+    this instanceof OGNLEvaluationMethods or
     this instanceof DataSourceMethods or
     this instanceof JavaClassMethods or
-    this instanceof H2Methods or
-    
+    this instanceof H2Methods or 
+    this instanceof DriverManagerMethods or
+    this instanceof System or
+    this instanceof XXEMethods or
+    this instanceof C3P0ComboPoolDataSourceMethods or
+    this instanceof StringSubstitutorMethods or
     //this instanceof SpringBeansMethods
-    this instanceof System
-  }
 
+    /*
+     * We might be able to find bridge gadgets like in
+     * ysoserial.net
+     */
+    this instanceof XMLDecoderMethods or
+    this instanceof SnakeYAMLMethods or
+    this instanceof KyroMethods
+
+    //this instanceof QuickTestMethods
+
+  }
 }
