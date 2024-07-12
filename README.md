@@ -15,73 +15,49 @@ Search for gadgets:
 $ codeql database analyze log4j --format=sarif-latest --output=log4j.sarif ./QLinspector/
 ```
 
-## Usage
+## Queries
+### `QLinspector.ql`
 
-As described in our [article](https://www.synacktiv.com/publications/finding-gadgets-like-its-2022.html) three steps need to be done.
+The main CodeQL query that can be used to find gadget chains.
 
-If you need to modify the code to fit your needs, you can open the current repository in VSCode with the CodeQL plugin and modify the different files.
+here is an example with the Aspectj gadget chain:
 
-### Finding new sinks
+![aspectj](img/aspectj.png)
 
-To find new sinks run the following query:
+Running the above query can sometimes return a lot of false positives. To filter them the `GadgetSanitizer` class has been added. You can add conditions to filter out `DataFlow::Node`:
 
-```
-from Callable c0,  DangerousExpression de
-where c0 instanceof RecursiveCallToDangerousMethod and
-de.getEnclosingCallable() = c0
-select c0, de
-```
-
-### Finding new sources
-
-To find new sources run the following query:
-
-```
-from Callable c0
-where c0 instanceof RecursiveCallToDangerousMethod and
-c0 instanceof Source
-select c0
-```
-
-Note that both queries can result in a CodeQL error, removing the `@kind path-problem` metadata can fix this issue, however this metadata is required for the next query.
-
-### Linking the sources and the sinks
-
-To link the sources and the sinks the following query can be done thanks to the `edges` predicate:
-
-```
-from RecursiveCallToDangerousMethod c0,  RecursiveCallToDangerousMethod c1, DangerousExpression de
-where de.getEnclosingCallable() = c1 and
-c0 instanceof Source and
-hasCalls(c0, c1)
-select c0, c0, c1, "recursive call to dangerous expression $@", de, de.toString()
-```
-
-![hibernate 6.0 example](img/hibernate-6.0.png)
-
-### Filtering false positive
-
-Running the above query can return a lot of false positives. To filter them the `Sanitizer` class has been added. You can add conditions to filter out methods. Note that for now it will apply the filter on all the chain. For example if you want to filter the `getValue` method:
-
-```
-private class Sanitizer extends Callable {
-  Sanitizer(){
-    hasName(["getValue"]) 
+```ql
+/**
+ * placeholder for adding sanitizing steps
+*/
+class GadgetSanitizer extends DataFlow::Node {
+  GadgetSanitizer() {
+    this.getEnclosingCallable().hasName("")
   }
 }
 ```
 
-### Exploring new ideas
+### `QLinspectorOld.ql`
 
-A lot of gadget chains are currently using the call to the `getOutputProperties` method of the `TemplatesImpl` object, new paths can be explored with this query:
+Old query that was initially developped. This query do not use the taint model of CodeQL thus it could return different results.
 
-```
-from Callable c0
-where c0 instanceof RecursiveCallToDangerousMethod and
-c0.hasNoParameters() and 
+### `BeanFactoryGadgetFinder.ql`
 
-c0.getName().matches("get%")
+A query that can be used to new gadget chain based on the `org.apache.naming.factory.BeanFactory`. The `BeanFactory` class, allows to create an instance of arbitrary class with default constructor and call any public method with one `String` parameter.
 
-select c0, c0.(RecursiveCallToDangerousMethod).getDangerousExpression()
-```
+More information in this blogpost: https://www.veracode.com/blog/research/exploiting-jndi-injections-java
 
+### `CommonsBeanutilsGadgetFinder.ql`
+
+A query that can be used to find alternatives to the `getOutputProperties` method used in the `CommonsBeanutils` chain.
+
+More information here:
+- https://www.praetorian.com/blog/relution-remote-code-execution-java-deserialization-vulnerability/
+- https://mogwailabs.de/en/blog/2023/04/look-mama-no-templatesimpl/
+
+
+### `ObjectFactoryFinder.ql`
+
+A query that can be used to find alternatives to the `org.apache.naming.factory.BeanFactory`. This could be usefull during JNDI exploitation.
+
+More information in this blogpost: https://www.veracode.com/blog/research/exploiting-jndi-injections-java
