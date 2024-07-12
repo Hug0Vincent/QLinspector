@@ -78,7 +78,7 @@ class Equals extends Method {
 class Compare extends Method {
     Compare() {
         getDeclaringType().getASupertype*() instanceof Comparator and
-        hasName("compare")
+        hasName(["compare", "compareTo"])
     }
 }
 
@@ -108,8 +108,9 @@ class ObjectInputValidationMethod extends Callable {
 
 class ObjectMethod extends Callable {
     ObjectMethod(){
-        this.getDeclaringType().getASupertype*() instanceof ObjectType and
-        hasName("finalize")
+        hasName("finalize") and
+        getNumberOfParameters() = 0 and
+        getAThrownExceptionType().hasQualifiedName("java.lang", "Throwable")
     }
 }
 
@@ -173,7 +174,8 @@ class GadgetSource extends Source {
         this instanceof ObjectInputValidationMethod or
         this instanceof InvocationHandlerMethod or
         this instanceof MethodHandlerMethod or
-        this instanceof GroovyMethod
+        this instanceof GroovyMethod or 
+        this instanceof ToStringMethod
     }
 }
 
