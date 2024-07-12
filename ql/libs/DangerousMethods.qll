@@ -107,6 +107,18 @@ class StringSubstitutorType extends RefType {
   StringSubstitutorType() { this.hasQualifiedName("org.apache.commons.text", "StringSubstitutor") }
 }
 
+class ScriptEngineType extends RefType {
+  ScriptEngineType() { this.hasQualifiedName("javax.script", "ScriptEngine") }
+}
+
+class InvocableType extends RefType {
+  InvocableType() { this.hasQualifiedName("javax.script", "Invocable") }
+}
+
+class FreemarkerTemplateType extends RefType {
+  FreemarkerTemplateType() { this.hasQualifiedName("freemarker.template", "Template") }
+}
+
 /**
  * Methods or constructors
  */
@@ -114,6 +126,7 @@ class StringSubstitutorType extends RefType {
 class ExpressionEvaluationMethods extends Method {
     ExpressionEvaluationMethods(){
         this instanceof ValueExpressionMethods or
+        this instanceof ExpressionFactoryMethods or
         this instanceof MethodExpressionMethods or
         this instanceof LambdaExpressionMethods or
         this instanceof ELProcessorMethods or
@@ -126,6 +139,13 @@ class ValueExpressionMethods extends Method {
   ValueExpressionMethods(){
     this.getDeclaringType().getASupertype*() instanceof ValueExpression and
     hasName(["getValue", "setValue"])
+  }
+}
+
+class ExpressionFactoryMethods extends Method {
+  ExpressionFactoryMethods(){
+    this.getDeclaringType().getASupertype*() instanceof ValueExpression and
+    hasName(["createValueExpression", "createMethodExpression"])
   }
 }
 
@@ -171,8 +191,8 @@ class RuntimeExec extends Method {
 
 class URL extends Method {
   URL(){
-    hasQualifiedName("java.net", "URL", "openStream") or 
-    hasQualifiedName("java.net", "URLConnection", "connect")
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("java.net", "URL") and this.hasName("openStream")) or 
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("java.net", "URLConnection") and this.hasName("connect"))
   }
 }
 
@@ -196,13 +216,14 @@ class Files extends Method {
 
 class FileInputStream extends Constructor {
   FileInputStream(){
-    hasQualifiedName("java.io", "FileInputStream", "FileInputStream")
+    this.getDeclaringType().getASupertype*().hasQualifiedName("java.io", "FileInputStream") and this.hasName("FileInputStream")
   }
 }
 
-class FileOutputStream extends Constructor {
+class FileOutputStream extends Callable {
   FileOutputStream(){
-    hasQualifiedName("java.io", "FileOutputStream", "FileOutputStream")
+    (this instanceof Constructor and this.hasQualifiedName("java.io", "FileOutputStream", "FileOutputStream")) or 
+    this.getDeclaringType().getASupertype*().hasQualifiedName("java.io", "FileOutputStream") and this.hasName("write")
   }
 }
 
@@ -221,12 +242,17 @@ class System extends Method {
   }
 }
 
-class EvalScriptEngine extends Method {
-  EvalScriptEngine(){
-    hasQualifiedName("javax.script", "ScriptEngine", "eval")
+class ScriptEngineMethods extends Method {
+  ScriptEngineMethods(){
+    ( this.getDeclaringType().getASupertype*() instanceof ScriptEngineType and this.hasName("eval") ) or
+    ( this.getDeclaringType().getASupertype*() instanceof InvocableType and this.hasName(["invokeMethod", "invokeFunction"]) )
   }
 }
 
+/**
+ * Want to search for BCEL class loader but it's removed in recent java versions
+ * https://www.leavesongs.com/penetration/where-is-bcel-classloader.html
+ */
 class ClassLoaderMethods extends Callable {
   ClassLoaderMethods(){
     this.getDeclaringType().getASupertype*() instanceof ClassLoaderType and (
@@ -315,7 +341,7 @@ class DriverManagerMethods extends Callable {
 // not sure about this one
 class C3P0ComboPoolDataSourceMethods extends Callable {
   C3P0ComboPoolDataSourceMethods(){
-    hasQualifiedName("com.mchange.v2.c3p0", "AbstractComboPooledDataSource", "setJdbcUrl")
+    this.getDeclaringType().getASupertype*().hasQualifiedName("com.mchange.v2.c3p0", "AbstractComboPooledDataSource") and this.hasName("setJdbcUrl")
   }
 }
 
@@ -327,24 +353,25 @@ class JavaClassMethods extends Callable {
 
 class H2Methods extends Callable {
   H2Methods(){
-    (this instanceof Constructor and this.getDeclaringType() instanceof H2JdbcConnectionType)
+    (this instanceof Constructor and this.getDeclaringType().getASupertype*() instanceof H2JdbcConnectionType)
   }
 }
 
 class XMLDecoderMethods extends Callable {
-  XMLDecoderMethods(){hasQualifiedName("java.beans", "XMLDecoder", "readObject")}
+  XMLDecoderMethods(){
+    this.getDeclaringType().getASupertype*().hasQualifiedName("java.beans", "XMLDecoder") and this.hasName("readObject")
+  }
 }
 
 class SnakeYAMLMethods extends Callable {
   SnakeYAMLMethods(){
-    hasQualifiedName("org.yaml.snakeyaml", "Yaml", "load") or
-    hasQualifiedName("org.yaml.snakeyaml", "Yaml", "loadAll")
+    this.getDeclaringType().getASupertype*().hasQualifiedName("org.yaml.snakeyaml", "Yaml") and this.hasName(["load", "loadAll"])
   }
 }
 
 class KyroMethods extends Callable {
   KyroMethods(){
-    hasQualifiedName("com.esotericsoftware.kryo", "Kryo", "readObject")
+    this.getDeclaringType().getASupertype*().hasQualifiedName("com.esotericsoftware.kryo", "Kryo") and this.hasName("readObject")
   }
 }
 
@@ -353,14 +380,14 @@ class KyroMethods extends Callable {
  */
 class XXEMethods extends Callable {
   XXEMethods(){
-    hasQualifiedName("javax.xml.parser", "DocumentBuilder", "parse") or
-    hasQualifiedName("org.jdom2.input", "SAXBuilder", "build") or
-    hasQualifiedName("javax.xml.parsers", "SAXParser", "parse") or
-    hasQualifiedName("org.dom4j.io", "SAXReader", "read") or
-    hasQualifiedName("javax.xml.transform", "Transformer", "transform") or
-    hasQualifiedName("javax.xml.validation", "SchemaFactory", "newSchema") or
-    hasQualifiedName("javax.xml.validation", "Validator", "validate") or
-    (this.getDeclaringType().getASubtype*().hasQualifiedName("org.xml.sax", "XMLReader") and this.hasName("parse"))
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("javax.xml.parser", "DocumentBuilder") and this.hasName("parse") )or
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("org.jdom2.input", "SAXBuilder") and this.hasName("build") )or
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("javax.xml.parsers", "SAXParser") and this.hasName("parse") )or
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("org.dom4j.io", "SAXReader") and this.hasName("read") )or
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("javax.xml.transform", "Transformer") and this.hasName("transform") )or
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("javax.xml.validation", "SchemaFactory") and this.hasName("newSchema") )or
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("javax.xml.validation", "Validator") and this.hasName("validate") )or
+    (this.getDeclaringType().getASupertype*().hasQualifiedName("org.xml.sax", "XMLReader") and this.hasName("parse"))
 
   }
 }
@@ -370,7 +397,7 @@ class XXEMethods extends Callable {
  */
 class CreateJexlScriptMethod extends Method {
   CreateJexlScriptMethod() {
-    this.getDeclaringType() instanceof JexlEngine and this.hasName("createScript")
+    this.getDeclaringType().getASupertype*() instanceof JexlEngine and this.hasName("createScript")
   }
 }
 
@@ -380,8 +407,8 @@ class CreateJexlScriptMethod extends Method {
 class CreateJexlTemplateMethod extends Method {
   CreateJexlTemplateMethod() {
     (
-      this.getDeclaringType() instanceof JxltEngine or
-      this.getDeclaringType() instanceof UnifiedJexl
+      this.getDeclaringType().getASupertype*() instanceof JxltEngine or
+      this.getDeclaringType().getASupertype*() instanceof UnifiedJexl
     ) and
     this.hasName("createTemplate")
   }
@@ -392,10 +419,10 @@ class CreateJexlTemplateMethod extends Method {
  */
 class CreateJexlExpressionMethod extends Method {
   CreateJexlExpressionMethod() {
-    (this.getDeclaringType() instanceof JexlEngine or this.getDeclaringType() instanceof JxltEngine) and
-    this.hasName("createExpression")
-    or
-    this.getDeclaringType() instanceof UnifiedJexl and this.hasName("parse")
+    (
+      (this.getDeclaringType().getASupertype*() instanceof JexlEngine or this.getDeclaringType().getASupertype*() instanceof JxltEngine) and this.hasName("createExpression")
+    ) or
+    ( this.getDeclaringType().getASupertype*() instanceof UnifiedJexl and this.hasName("parse") )
   }
 }
 
@@ -418,8 +445,15 @@ class JexlMethods extends Method {
  */
 class StringSubstitutorMethods extends Method {
   StringSubstitutorMethods(){
-    this.getDeclaringType() instanceof StringSubstitutorType and
+    this.getDeclaringType().getASupertype*() instanceof StringSubstitutorType and
     this.hasName(["replace", "replaceIn"])
+  }
+}
+
+class FreemarkerMethods extends Method {
+  FreemarkerMethods(){
+    this.getDeclaringType().getASupertype*() instanceof FreemarkerTemplateType and
+    this.hasName("process")
   }
 }
 
@@ -439,7 +473,7 @@ class DangerousMethod extends Callable {
     this instanceof URL or
     this instanceof ProcessBuilder or 
     this instanceof FilesMethods or
-    this instanceof EvalScriptEngine or
+    this instanceof ScriptEngineMethods or
     this instanceof ClassLoader or
     this instanceof ContextLookup or
     this instanceof OGNLEvaluationMethods or
