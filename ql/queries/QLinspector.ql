@@ -1,33 +1,96 @@
 /**
- * @id synacktiv/java/qlinspector
- * @description find regular Java gadget chains
- * @name QLInspector
  * @kind path-problem
- * @problem.severity error
- * @tags security
  */
 
 import java
-import libs.DangerousMethods
+import semmle.code.java.dataflow.TaintTracking
+import semmle.code.java.dataflow.FlowSources
+import semmle.code.java.dataflow.ExternalFlow
+import GadgetFinder::PathGraph
 import libs.Source
-import libs.Gadget
+import libs.DangerousMethods
+import libs.GadgetTaintHelpers
+
+private module GadgetFinderConfig implements DataFlow::ConfigSig {
+  
+  /**
+   * We taint the object that is being deserialized and all it's fields.
+   * 
+   * In fact the tricks here is that the instance parameter (this) is implicitly
+   * passed between method calls. 
+   * 
+   * Thanks @atorralba
+   * cf: https://github.com/github/codeql/discussions/16474
+   * 
+   * We also taint all the objects that are passed as parameters of the source.
+   *  readObject(ObjectInputStream taint){...}
+   */
+  predicate isSource(DataFlow::Node source) {
+    source.(DataFlow::InstanceParameterNode).getCallable() instanceof GadgetSource or
+    source.asParameter().getCallable() instanceof GadgetSource
+  }
+
+  /**
+   * A sink is a call to a DangerousMethod where the node is either a parameter
+   * to the call or the qualifier like this:
+   * 
+   *  sink.dangerousMethod()
+   *  obj.dangerousMethod(sink)
+   * 
+   */
+  predicate isSink(DataFlow::Node sink) {
+    exists(Call c |
+      c.getCallee() instanceof DangerousMethod and
+      (
+        sink.asExpr() = c.getAnArgument() or
+        sink.asExpr() = c.getQualifier()
+      )
+    )
+  }
+
+  /**
+   * Propagate Getters and Setters.
+   */
+  predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
+    any(GetterTaintStep s).step(node1, node2) or
+    any(SetterTaintStep s).step(node1, node2) or
+    any(ConstructorTaintStep s).step(node1, node2)
+  }
+
+  /**
+   * We stop return statement if the caller is the source otherwise codeql goes up in 
+   * the call graph and shows path calling the source. This is not the best solution
+   * because we might miss some legitimate return statement.
+   * 
+   * The GadgetSanitizer is here to quickly add barrier steps.
+   */
+  predicate isBarrier(DataFlow::Node node) {
+    //node.asExpr() instanceof SuperAccess or
+    exists(ReturnStmt r |  r.getResult() = node.asExpr() and r.getEnclosingCallable() instanceof GadgetSource) or
+    node instanceof GadgetSanitizer
+  }
+}
+
+/**
+ * CodeQL trick to taint all field of a Serilizable object if the object is tainted
+ */
+private class FieldInheritTaint extends DataFlow::FieldContent, TaintInheritingContent {
+  FieldInheritTaint() { this.getField().getDeclaringType().getASupertype*() instanceof TypeSerializable }
+}
 
 
-/*
-================ find sink  ================
-from Callable c0,  DangerousExpression de
-where c0 instanceof RecursiveCallToDangerousMethod and
-de.getEnclosingCallable() = c0
-select c0, de
-
-================ find source  ===============
-from Callable c0
-where c0 instanceof RecursiveCallToDangerousMethod and
-c0 instanceof GadgetSource
-select c0
+/**
+ * placeholder for adding sanitizing steps
 */
+class GadgetSanitizer extends DataFlow::Node {
+  GadgetSanitizer() {
+    this.getEnclosingCallable().hasName("")
+  }
+}
 
-from Callable c0,  Callable c1, DangerousExpression de
-where c0 instanceof GadgetSource and
-findGadgetChain(c0, c1, de)
-select c0, c0, c1, "recursive call to dangerous expression $@", de, de.toString()
+
+module GadgetFinder = TaintTracking::Global<GadgetFinderConfig>;
+
+from GadgetFinder::PathNode source, GadgetFinder::PathNode sink
+where GadgetFinder::flowPath(source, sink)
+select sink.getNode(), source, sink, "Gadget from $@", source.getNode(), getSourceLocationInfo(source.getNode())
