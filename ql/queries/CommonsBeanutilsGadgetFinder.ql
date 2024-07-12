@@ -10,7 +10,7 @@
  import java
  import libs.DangerousMethods
  import libs.Source
- import libs.Gadget
+ import libs.GadgetHelpers
 
 /*
     https://www.praetorian.com/blog/relution-remote-code-execution-java-deserialization-vulnerability/

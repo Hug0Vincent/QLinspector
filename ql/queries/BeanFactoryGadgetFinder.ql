@@ -10,7 +10,7 @@
  import java
  import libs.DangerousMethods
  import libs.Source
- import libs.Gadget
+ import libs.GadgetOldHelpers
 
 /*
     https://www.veracode.com/blog/research/exploiting-jndi-injections-java
