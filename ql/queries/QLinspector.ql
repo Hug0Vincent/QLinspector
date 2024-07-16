@@ -58,26 +58,22 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
   }
 
   /**
-   * We stop return statement if the caller is the source otherwise codeql goes up in 
-   * the call graph and shows path calling the source. This is not the best solution
-   * because we might miss some legitimate return statement.
+   * We stop return statement if the caller is the source
    * 
+   * Thanks @aschackmull
+   * cf: https://github.com/github/codeql/discussions/16973#discussioncomment-10050420
+   */
+  DataFlow::FlowFeature getAFeature() { 
+    result instanceof DataFlow::FeatureHasSourceCallContext
+  }
+
+  /**
    * The GadgetSanitizer is here to quickly add barrier steps.
    */
   predicate isBarrier(DataFlow::Node node) {
-    //node.asExpr() instanceof SuperAccess or
-    exists(ReturnStmt r |  r.getResult() = node.asExpr() and r.getEnclosingCallable() instanceof GadgetSource) or
     node instanceof GadgetSanitizer
   }
 }
-
-/**
- * CodeQL trick to taint all field of a Serilizable object if the object is tainted
- */
-private class FieldInheritTaint extends DataFlow::FieldContent, TaintInheritingContent {
-  FieldInheritTaint() { this.getField().getDeclaringType().getASupertype*() instanceof TypeSerializable }
-}
-
 
 /**
  * placeholder for adding sanitizing steps
@@ -86,6 +82,13 @@ class GadgetSanitizer extends DataFlow::Node {
   GadgetSanitizer() {
     this.getEnclosingCallable().hasName("")
   }
+}
+
+/**
+ * CodeQL trick to taint all field of a Serilizable object if the object is tainted
+ */
+private class FieldInheritTaint extends DataFlow::FieldContent, TaintInheritingContent {
+  FieldInheritTaint() { this.getField().getDeclaringType().getASupertype*() instanceof TypeSerializable }
 }
 
 

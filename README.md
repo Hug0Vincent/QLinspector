@@ -43,7 +43,7 @@ Old query that was initially developped. This query do not use the taint model o
 
 ### `BeanFactoryGadgetFinder.ql`
 
-A query that can be used to new gadget chain based on the `org.apache.naming.factory.BeanFactory`. The `BeanFactory` class, allows to create an instance of arbitrary class with default constructor and call any public method with one `String` parameter.
+A query that can be used to find new gadget chains based on the `org.apache.naming.factory.BeanFactory`. The `BeanFactory` class, allows to create an instance of arbitrary class with default constructor and call any public method with one `String` parameter.
 
 More information in this blogpost: https://www.veracode.com/blog/research/exploiting-jndi-injections-java
 
@@ -61,3 +61,16 @@ More information here:
 A query that can be used to find alternatives to the `org.apache.naming.factory.BeanFactory`. This could be usefull during JNDI exploitation.
 
 More information in this blogpost: https://www.veracode.com/blog/research/exploiting-jndi-injections-java
+
+## Resources
+
+- https://www.synacktiv.com/publications/finding-gadgets-like-its-2015-part-1.html
+- https://www.synacktiv.com/publications/finding-gadgets-like-its-2015-part-2.html
+- https://www.synacktiv.com/publications/finding-gadgets-like-its-2022.html
+- https://www.synacktiv.com/publications/java-deserialization-tricks
+- https://www.praetorian.com/blog/relution-remote-code-execution-java-deserialization-vulnerability/
+- https://www.veracode.com/blog/research/exploiting-jndi-injections-java
+- https://mogwailabs.de/en/blog/2023/04/look-mama-no-templatesimpl/
+- https://testbnull.medium.com/return-of-the-rhino-analysis-of-mozillarhino-gadgetchain-also-the-writeup-of-hitb-linkextractor-a2074b4ae624
+- https://www.buaq.net/go-53869.html
+- https://b1ue.cn/archives/529.html
