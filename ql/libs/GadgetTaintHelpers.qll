@@ -54,7 +54,7 @@ class SetterTaintStep extends GadgetAdditionalTaintStep {
         )
     }
 }
-  
+
 /**
  * We want to taint constructed object where the constructor takes our sourceNode
  * as parameter:
@@ -71,7 +71,6 @@ class ConstructorTaintStep extends GadgetAdditionalTaintStep {
         )
     }
 }
-  
   
 /**
  * We want to add additional taint step when the ObjectInputStream is accessed
@@ -107,6 +106,58 @@ class ObjectInputStreamTaintStep extends GadgetAdditionalTaintStep {
         
       )
     }
+}
+
+/**
+ * We want to propagate the taint from an abstrat method call to an actual Lambda
+ * expression call.
+ * Like this:
+ * 
+ *  consumerFunc.accept(fromNode);
+ * 
+ * To an actual implementation of a lambda expression like this:
+ * 
+ *  (String toNode) -> {dangerousMethod(toNode);};
+ * 
+ * cf: https://github.com/artsploit/ysoserial/blob/scala1/src/main/java/ysoserial/payloads/Scala1.java
+ */
+class LambdaCallWithParameterStep extends GadgetAdditionalTaintStep {
+  override predicate step(DataFlow::Node fromNode, DataFlow::Node toNode) {
+    exists( LambdaExpr le, MethodCall mc  | 
+        mc.getMethod().isAbstract() and
+        mc.getMethod().getAPossibleImplementation() = le.asMethod() and
+        le.asMethod().getDeclaringType().getASupertype*() instanceof TypeSerializable and
+
+        fromNode.asExpr().(Argument).getCall() = mc and
+        toNode.(DataFlow::ParameterNode).asParameter() = le.asMethod().getAParameter()
+      )
+  }
+}
+
+/**
+ * We want to propagate the taint from an abstrat method call to an actual Lambda
+ * expression call.
+ * Like this:
+ * 
+ *  fromNode.run();
+ * 
+ * To an actual implementation of a lambda expression like this:
+ * 
+ *  SerializableRunnable runnable = () -> {dangerousMethod(toNode);};
+ * 
+ * cf: https://github.com/artsploit/ysoserial/blob/scala1/src/main/java/ysoserial/payloads/Scala1.java
+ */
+class LambdaCallQualifierStep extends GadgetAdditionalTaintStep {
+  override predicate step(DataFlow::Node fromNode, DataFlow::Node toNode) {
+    exists( LambdaExpr le, MethodCall mc  | 
+        mc.getMethod().isAbstract() and
+        mc.getMethod().getAPossibleImplementation() = le.asMethod() and
+        le.asMethod().getDeclaringType().getASupertype*() instanceof TypeSerializable and
+
+        fromNode.asExpr() = mc.getQualifier() and
+        toNode.asExpr().(FieldAccess).getEnclosingCallable() = le.asMethod()
+      )
+  }
 }
 
 Callable getSourceCallable(DataFlow::Node n){

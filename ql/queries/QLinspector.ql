@@ -49,12 +49,10 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
   }
 
   /**
-   * Propagate Getters and Setters.
+   * Add custom AdditionalFlowStep.
    */
   predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
-    any(GetterTaintStep s).step(node1, node2) or
-    any(SetterTaintStep s).step(node1, node2) or
-    any(ConstructorTaintStep s).step(node1, node2)
+    any(GadgetAdditionalTaintStep s).step(node1, node2)
   }
 
   /**
@@ -90,7 +88,6 @@ class GadgetSanitizer extends DataFlow::Node {
 private class FieldInheritTaint extends DataFlow::FieldContent, TaintInheritingContent {
   FieldInheritTaint() { this.getField().getDeclaringType().getASupertype*() instanceof TypeSerializable }
 }
-
 
 module GadgetFinder = TaintTracking::Global<GadgetFinderConfig>;
 
