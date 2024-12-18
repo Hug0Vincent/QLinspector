@@ -111,6 +111,10 @@ class ScriptEngineType extends RefType {
   ScriptEngineType() { this.hasQualifiedName("javax.script", "ScriptEngine") }
 }
 
+class CompiledScriptType extends RefType {
+  CompiledScriptType() { this.hasQualifiedName("javax.script", "CompiledScript") }
+}
+
 class InvocableType extends RefType {
   InvocableType() { this.hasQualifiedName("javax.script", "Invocable") }
 }
@@ -245,7 +249,10 @@ class System extends Method {
 class ScriptEngineMethods extends Method {
   ScriptEngineMethods(){
     ( this.getDeclaringType().getASupertype*() instanceof ScriptEngineType and this.hasName("eval") ) or
-    ( this.getDeclaringType().getASupertype*() instanceof InvocableType and this.hasName(["invokeMethod", "invokeFunction"]) )
+    ( this.getDeclaringType().getASupertype*() instanceof InvocableType and this.hasName(["invokeMethod", "invokeFunction"]) ) or 
+    
+    // https://securitylab.github.com/advisories/GHSL-2023-229_GHSL-2023-230_kafka-ui/
+    ( this.getDeclaringType().getASupertype*() instanceof CompiledScriptType and this.hasName("eval") )
   }
 }
 
