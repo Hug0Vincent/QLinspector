@@ -1,5 +1,5 @@
 /**
- * @id synacktiv/java/qlinspector
+ * @id synacktiv/java/qlinspectorold
  * @description find regular Java gadget chains
  * @name QLInspector
  * @kind path-problem
