@@ -1,5 +1,10 @@
 /**
+ * @id synacktiv/java/qlinspector
+ * @description find regular Java gadget chains
+ * @name Java deserialization gadget finder
  * @kind path-problem
+ * @problem.severity warning
+ * @tags security
  */
 
 import java
