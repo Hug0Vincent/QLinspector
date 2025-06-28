@@ -34,7 +34,7 @@ class SerializationInfoGetTaintStep extends GadgetAdditionalTaintStep {
 
 
 /**
- * Not perfect but it works. `TaintInheritingContentis` not available in csharp
+ * Not perfect but it works. `TaintInheritingContents` not available in csharp
  * We taint each `AssignableMemberAccess` (Field /Member) if it's accessed from
  * a GadgetSource Callable.
  * 
@@ -66,7 +66,7 @@ predicate reachableFromOnDeserialized(Callable dst) {
    * A field/property that can be serialized, either explicitly
    * or as a member of a serialized type.
    */
-  private class SerializedMember extends AssignableMember {
+  class SerializedMember extends AssignableMember {
     SerializedMember() {
 
       // This field is a member of an explicitly serialized type
@@ -94,6 +94,11 @@ class NotSerializedAttributeClass extends Class {
       this.hasName(["JsonIgnoreAttribute", "NonSerializedAttribute"])
     }
   }
+
+predicate isStringOrGeneric(Type t) {
+  t instanceof StringType or
+  t instanceof TypeParameter
+}
 
 Callable getSourceCallable(DataFlow::Node n){
     result = n.asParameter().getCallable() or

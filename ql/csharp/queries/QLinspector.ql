@@ -9,13 +9,9 @@
 
 import csharp
 import semmle.code.csharp.dataflow.TaintTracking
-import semmle.code.csharp.serialization.Deserializers
-import semmle.code.csharp.security.dataflow.flowsinks.FlowSinks
-import semmle.code.csharp.security.dataflow.flowsources.FlowSources
-import semmle.code.csharp.dataflow.internal.ExternalFlow
 import GadgetFinder::PathGraph
 import libs.Source
-import libs.DangerousMethods
+import libs.DangerousMethods as DangerousMethods
 import libs.GadgetTaintHelpers
 
 private module GadgetFinderConfig implements DataFlow::ConfigSig {
@@ -26,19 +22,13 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
   }
 
   /**
-   * A sink is a call to a DangerousMethod where the node is either a parameter
-   * to the call or the qualifier like this:
+   * A sink is a call to a DangerousMethod.
    * 
-   *  sink.dangerousMethod()
    *  obj.dangerousMethod(sink)
    * 
    */
   predicate isSink(DataFlow::Node sink) {
-    exists(Call c |
-      c.getTarget() instanceof DangerousMethod and (
-        sink.asExpr() = c.getAnArgument()
-      )
-    )
+    sink instanceof DangerousMethods::Sink
   }
 
   /**
