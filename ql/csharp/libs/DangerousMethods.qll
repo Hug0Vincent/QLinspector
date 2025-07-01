@@ -50,6 +50,42 @@ private class ClaimsSink extends Sink {
   }
 }
 
+private class ReflectionSink extends Sink {
+  ReflectionSink() {
+    exists(Call c |
+      (
+        (
+          // System.Type.GetProperty(string)
+          c.getTarget().getDeclaringType().hasFullyQualifiedName("System", "Type") and
+          c.getTarget().hasName("GetProperty")
+        ) or (
+          // System.Type.GetMethod(string)
+          c.getTarget().getDeclaringType().hasFullyQualifiedName("System", "Type") and
+          c.getTarget().hasName("GetMethod")
+        ) or (
+          // System.Reflection.PropertyInfo.GetValue(object)
+          c.getTarget().getDeclaringType().hasFullyQualifiedName("System.Reflection", "PropertyInfo") and
+          c.getTarget().hasName("GetValue")
+        ) or (
+          // System.ComponentModel.PropertyDescriptorCollection.Find(string, bool)
+          c.getTarget().getDeclaringType().hasFullyQualifiedName("System.ComponentModel", "PropertyDescriptorCollection") and
+          c.getTarget().hasName("Find")
+        ) or (
+          // System.ComponentModel.PropertyDescriptor.GetValue(object)
+          c.getTarget().getDeclaringType().hasFullyQualifiedName("System.ComponentModel", "PropertyDescriptor") and
+          c.getTarget().hasName("GetValue")
+        ) or (
+          // System.Reflection.MethodInfo.Invoke(object, object[])
+          c.getTarget().getDeclaringType().hasFullyQualifiedName("System.Reflection", "MethodInfo") and
+          c.getTarget().hasName("Invoke")
+        )
+      ) 
+      and
+      c.getArgument(0) = this.asExpr()
+    )
+  }
+}
+
 
 class ExternalDangerousSink extends Sink {
   ExternalDangerousSink(){
