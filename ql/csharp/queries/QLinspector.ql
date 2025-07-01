@@ -10,15 +10,14 @@
 import csharp
 import semmle.code.csharp.dataflow.TaintTracking
 import GadgetFinder::PathGraph
-import libs.Source
+import libs.Sources as Sources
 import libs.DangerousMethods as DangerousMethods
 import libs.GadgetTaintHelpers
 
 private module GadgetFinderConfig implements DataFlow::ConfigSig {
   
   predicate isSource(DataFlow::Node source) {
-    source.asParameter().getCallable() instanceof GadgetSource or
-    source.asExpr() instanceof GadgetSourceAssignableMemberAccess
+    source instanceof Sources::Source
   }
 
   /**

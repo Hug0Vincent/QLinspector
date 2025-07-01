@@ -2,8 +2,9 @@ import csharp
 import semmle.code.csharp.dataflow.TaintTracking
 import semmle.code.csharp.dataflow.DataFlow
 import semmle.code.csharp.serialization.Serialization
+private import semmle.code.csharp.dataflow.internal.DataFlowPrivate as DataFlowPrivate
 import codeql.util.Unit
-import Source
+import Sources
 
 class GadgetAdditionalTaintStep extends Unit {
     /**
@@ -32,6 +33,36 @@ class SerializationInfoGetTaintStep extends GadgetAdditionalTaintStep {
   }
 }
 
+/**
+ * Propagates taint from a tainted element to a serializable field or property access
+ * only if the Member is marked [Serializable] or its declaring type is serializable.
+ * 
+ * Since `SerializationInfo` is also controlled we add an exception for the 
+ * `System.Runtime.Serialization` namespace to catch this:
+ * 
+ *    SerializationInfo info
+ *    SerializationInfoEnumerator enumerator = info.GetEnumerator();
+ *    (byte[])enumerator.Value;
+ * 
+ * Poor attempt to mimic `TaintInheritingContents`.
+ */
+class SerializableAssignableTaintStep extends GadgetAdditionalTaintStep {
+
+  override predicate step(DataFlow::Node fromNode, DataFlow::Node toNode) {
+    exists(AssignableMemberAccess acc, AssignableMember m |
+      acc.getTarget() = m and
+      
+      (
+        m instanceof SerializedMember or
+        acc.getQualifier().getType().hasFullyQualifiedName("System.Runtime.Serialization", _)
+      ) and
+
+      // Taint flows from the qualifier (e.g., the assigned value) to the member access
+      fromNode.asExpr() = acc.getQualifier() and
+      toNode.asExpr() = acc
+    )
+  }
+}
 
 /**
  * Not perfect but it works. `TaintInheritingContents` not available in csharp
@@ -105,7 +136,9 @@ Callable getSourceCallable(DataFlow::Node n){
     exists(Call call |
       call.getAnArgument() = n.asExpr() |
       result = call.getTarget()
-    )
+    ) or
+    result = n.(DataFlowPrivate::InstanceParameterNode).getCallable(_) or
+    result = n.asExpr().getEnclosingCallable()
 }
   
 /**
