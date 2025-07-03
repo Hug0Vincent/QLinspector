@@ -34,8 +34,9 @@ class SerializationInfoGetTaintStep extends GadgetAdditionalTaintStep {
 }
 
 /**
- * Propagates taint from a tainted element to a serializable field or property access
- * only if the Member is marked [Serializable] or its declaring type is serializable.
+ * Propagates taint from a tainted element to a serializable field or property access:
+ * 
+ *    object res = fromNode.ToNode
  * 
  * Since `SerializationInfo` is also controlled we add an exception for the 
  * `System.Runtime.Serialization` namespace to catch this:
@@ -51,13 +52,13 @@ class SerializableAssignableTaintStep extends GadgetAdditionalTaintStep {
   override predicate step(DataFlow::Node fromNode, DataFlow::Node toNode) {
     exists(AssignableMemberAccess acc, AssignableMember m |
       acc.getTarget() = m and
-      
+
       (
-        m instanceof SerializedMember or
+        m instanceof SerializableMember or
         acc.getQualifier().getType().hasFullyQualifiedName("System.Runtime.Serialization", _)
       ) and
 
-      // Taint flows from the qualifier (e.g., the assigned value) to the member access
+      // Taint flows from the qualifier to the member access
       fromNode.asExpr() = acc.getQualifier() and
       toNode.asExpr() = acc
     )
@@ -77,7 +78,7 @@ class GadgetSourceAssignableMemberAccess extends AssignableMemberAccess {
             this.getEnclosingCallable() = c and
             reachableFromOnDeserialized(c) and
             this = f.getAnAccess() and
-            f instanceof SerializedMember
+            f instanceof SerializableMember
         )
     }
 }
@@ -94,14 +95,21 @@ predicate reachableFromOnDeserialized(Callable dst) {
 }
 
 /**
-   * A field/property that can be serialized, either explicitly
-   * or as a member of a serialized type.
+   * A field/property that can be serialized.
    */
-  class SerializedMember extends AssignableMember {
-    SerializedMember() {
+  abstract class SerializableMember extends AssignableMember {}
 
+  class DefaultSerializableMember extends SerializableMember {
+    DefaultSerializableMember() {
       // This field is a member of an explicitly serialized type
       this.getDeclaringType() instanceof SerializableType and
+      not this.(Attributable).getAnAttribute().getType() instanceof NotSerializedAttributeClass
+    }
+  }
+
+  class JsonNetSerializableMember extends SerializableMember {
+    JsonNetSerializableMember() {
+      // declaring type does not need to be serializable
       not this.(Attributable).getAnAttribute().getType() instanceof NotSerializedAttributeClass
     }
   }
@@ -126,11 +134,29 @@ class NotSerializedAttributeClass extends Class {
     }
   }
 
+/** Any attribute class that marks a member to be serialized. */
+class SerializedAttributeClass extends Class {
+    SerializedAttributeClass() {
+      this.hasName(["SerializableAttribute"])
+    }
+  }
+
+/**
+ * Predicate to check wether a type is a string or a generic type.
+ */
 predicate isStringOrGeneric(Type t) {
   t instanceof StringType or
-  t instanceof TypeParameter
+  t instanceof TypeParameter or
+  t instanceof ObjectType
 }
 
+/**
+ * Try to get a callable from a node.
+ * 
+ * If you add a new source type you might 
+ * need to add logic here to see it in the result.
+ * The last condition is however quite permissive.
+ */
 Callable getSourceCallable(DataFlow::Node n){
     result = n.asParameter().getCallable() or
     exists(Call call |

@@ -14,8 +14,6 @@ import semmle.code.csharp.security.dataflow.ResourceInjectionQuery as ResourceIn
  */
 abstract class Sink extends ApiSinkExprNode { }
 
-
-
 /**
  * A sink for delegate calls to find more `TypeConfuseDelegate` like gadgets.
  */
@@ -37,7 +35,9 @@ class DangerousDelegateSink extends Sink {
   }
 }
 
-
+/**
+ * Sink to detect variant of the `ClaimsIdentity` and `ClaimsPrincipal` gadgets.
+ */
 private class ClaimsSink extends Sink {
   ClaimsSink() {
     exists(Constructor c |
@@ -50,6 +50,9 @@ private class ClaimsSink extends Sink {
   }
 }
 
+/**
+ * Sink for reflection. It includes property call / method call
+ */
 private class ReflectionSink extends Sink {
   ReflectionSink() {
     exists(Call c |
@@ -86,13 +89,15 @@ private class ReflectionSink extends Sink {
   }
 }
 
-
+/**
+ * Sinks stolen from other built-in queries.
+ */
 class ExternalDangerousSink extends Sink {
   ExternalDangerousSink(){
     this instanceof UnsafeDeserialization::Sink
     or this instanceof CodeInjection::Sink
     or this instanceof CommandInjection::Sink
-    or this instanceof TaintedPath::Sink
+    //or this instanceof TaintedPath::Sink
     or this instanceof XmlEntityInjection::Sink
     or this instanceof ResourceInjection::Sink
     or this instanceof RequestForgery::Sink

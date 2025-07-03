@@ -29,11 +29,13 @@ class TmpMemberAccess extends Source {
  *  - SecurityException
  *  - SettingsPropertyValue
  */
+/*
 class GetterSource extends Source {
     GetterSource(){
         this.(DataFlowPrivate::InstanceParameterNode).getCallable(_) instanceof Getter
     }
 }
+*/
 
 class GadgetSource extends Callable {
     GadgetSource(){

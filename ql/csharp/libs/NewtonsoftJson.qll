@@ -3,22 +3,13 @@ import semmle.code.csharp.serialization.Serialization
 import libs.GadgetTaintHelpers
 
 /**
- * A constructor marked with the [JsonConstructor] attribute.
- */
-class JsonConstructor extends Constructor {
-  JsonConstructor() {
-    this.(Attributable).getAnAttribute().getType().hasName("JsonConstructorAttribute")
-  }
-}
-
-/**
  * A type serializable by Newtonsoft.Json, considering typical Json.NET serialization
  * conventions: public parameterless constructor, [JsonConstructor], or single public constructor.
  */
 class JsonSerializableType extends SerializableType {
 
-    JsonSerializableType() { this.getAnAttribute().getType().hasName("SerializableAttribute") }
-  
+    // Every type is serializable
+    JsonSerializableType() { any() }
 
   /**
    * Json.NET deserialization callbacks, like methods marked with [OnDeserializing]/[OnDeserialized] or constructors.
@@ -32,6 +23,9 @@ class JsonSerializableType extends SerializableType {
   }
 
   /**
+   * Not working, the `SerializableType` type force the return value to be a `Field` 
+   * but we can have `Property`.
+   * 
    * Json.NET serialized members: properties or fields with common JSON attributes.
    */
   override Field getASerializedField() {
@@ -57,6 +51,18 @@ class JsonSerializableType extends SerializableType {
   }
 }
 
+/**
+ * A constructor marked with the [JsonConstructor] attribute.
+ */
+class JsonConstructor extends Constructor {
+  JsonConstructor() {
+    this.(Attributable).getAnAttribute().getType().hasName("JsonConstructorAttribute")
+  }
+}
+
+/**
+ * A method that can be called during Json.net deserialization.
+ */
 abstract class JsonSerilizationCallBack extends Callable {}
 
 class JsonConstructorSerilizationCallBack extends JsonSerilizationCallBack {
@@ -89,7 +95,10 @@ class JsonSettersSerilizationCallBack extends JsonSerilizationCallBack, Setter {
         exists(Property p |
           p.getDeclaringType() = this.getDeclaringType() and
           p.getSetter() = this and
-          this.isPublic()
+          (
+            this.isPublic() or
+            p.getAnAttribute().getType().hasName("JsonPropertyAttribute")
+          )
       )
     }
 }

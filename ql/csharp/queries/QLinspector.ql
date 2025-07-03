@@ -13,6 +13,7 @@ import GadgetFinder::PathGraph
 import libs.Sources as Sources
 import libs.DangerousMethods as DangerousMethods
 import libs.GadgetTaintHelpers
+private import semmle.code.csharp.dataflow.internal.DataFlowPrivate as DataFlowPrivate
 
 private module GadgetFinderConfig implements DataFlow::ConfigSig {
   
@@ -56,13 +57,28 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
 }
 
 /**
+ * A sanitizer for a gadget.
+ */
+abstract class GadgetSanitizer extends DataFlow::Node { }
+
+/**
  * placeholder for adding sanitizing steps
 */
-class GadgetSanitizer extends DataFlow::Node {
-  GadgetSanitizer() {
-    this.getEnclosingCallable().hasName("")
+class GenericGadgetSanitizer extends GadgetSanitizer {
+  GenericGadgetSanitizer() {
+    none()
   }
 }
+
+//class ControlGadgetSanitizer extends GadgetSanitizer {
+//  ControlGadgetSanitizer() {
+//    exists(AssignableMemberAccess acc, AssignableMember m |
+//      acc.getTarget() = m and
+//      m.getType().hasFullyQualifiedName("System.Windows.Forms", "Control") and
+//      this.asExpr() = acc
+//    )
+//  }
+//}
 
 module GadgetFinder = TaintTracking::Global<GadgetFinderConfig>;
 
