@@ -3,7 +3,7 @@ $DnSpyExCliPath = "F:\tools\dnSpy-net-win64\dnSpy.Console.exe"
 $OutputPrefixFolder = "C:\Users\user\Documents\Pentest\RD\Gadgets\Sources\"
 $CodeQLCliPath = "C:\Users\user\Documents\Pentest\Tools\codeql-bundle\codeql\codeql.exe"
 $CodeQLDatabaseOutputRoot = "C:\Users\user\Documents\Pentest\RD\Gadgets\Files\Codeql\Databases"
-$QueryPath = "F:\tools\QLinspector\ql\csharp\queries\QLinspector.ql"
+$DefaultQueryPath = "F:\tools\QLinspector\ql\csharp\queries\QLinspector.ql"
 $SarifOutputRoot = "C:\Users\user\Documents\Pentest\RD\Gadgets\Files\Codeql\Sarif"
 
 function Export-DotNetDlls {
@@ -112,7 +112,9 @@ function Run-CodeQLQuery {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [string]$DatabaseFolder
+        [string]$DatabaseFolder,
+
+        [string]$QueryPath = $DefaultQueryPath
     )
 
     # Validate database folder
