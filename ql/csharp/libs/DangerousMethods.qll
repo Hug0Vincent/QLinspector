@@ -90,6 +90,145 @@ private class ReflectionSink extends Sink {
 }
 
 /**
+ * Sink for asembly loading operations.
+ */
+private class AssemblySink extends Sink {
+  AssemblySink() {
+    exists(MethodCall c |
+      c.getTarget().getDeclaringType().hasFullyQualifiedName("System.Reflection", "Assembly") and
+      (
+        (
+          // Assembly.LoadFrom(string)
+          c.getTarget().hasName(["LoadFrom", "LoadFile"]) and
+          c.getArgument(0) = this.asExpr()
+        ) or 
+        (
+           // Assembly.Load(Byte[] ...)
+          c.getTarget().hasName("Load") and
+          c.getTarget().getParameter(0).getType().hasFullyQualifiedName("System", "Byte[]") and
+          c.getArgument(0) = this.asExpr()
+        )
+      )
+    )
+  }
+}
+
+/**
+  * A property assignment for ApplicationBase in a AppDomainSetup object.
+  * 
+  * Based on the Xunit1Executor gadget from @chudyPB
+  */
+private class AppDomainSetupSink extends Sink {
+  AppDomainSetupSink() {
+    exists(Property p |
+      p.hasName("ApplicationBase") and
+      p.getDeclaringType().hasFullyQualifiedName("System", "AppDomainSetup")
+    |
+      p.getAnAssignedValue() = this.asExpr()
+    )
+  }
+}
+
+class DLLImport extends Method {
+  DLLImport(){
+    this.getAnAttribute().getType().hasName("DllImportAttribute")
+  }
+
+  string getLib(){
+    exists(Attribute attr |
+      this.getAnAttribute() = attr and
+      attr.getConstructorArgument(0).(StringLiteral).getValue().toLowerCase() = result
+    )
+  }
+}
+
+class LinuxLoadLibDLLImportSink extends Sink {
+  LinuxLoadLibDLLImportSink(){
+    exists(MethodCall c, DLLImport m |
+      c.getTarget() = m and 
+
+      m.getLib() = "libdl.so" and
+      m.getName() = "dlopen" and
+
+      c.getArgument(0) = this.asExpr()
+    )
+  }
+}
+
+class MacLoadLibDLLImportSink extends Sink {
+  MacLoadLibDLLImportSink(){
+    exists(MethodCall c, DLLImport m |
+      c.getTarget() = m and 
+
+      m.getLib() = "libSystem.dylib" and
+      m.getName() = "dlopen" and
+
+      c.getArgument(0) = this.asExpr()
+    )
+  }
+}
+
+class WinLoadLibDLLImportSink extends Sink {
+  WinLoadLibDLLImportSink(){
+    exists(MethodCall c, DLLImport m |
+      c.getTarget() = m and 
+
+      m.getLib() = "kernel32.dll" and
+      m.getName() = "LoadLibrary" and
+
+      c.getArgument(0) = this.asExpr()
+    )
+  }
+}
+
+/**
+ * Sink for Activator, not sure.
+ */
+private class ActivatorSink extends Sink {
+  ActivatorSink() {
+    exists(MethodCall c |
+      c.getTarget().getDeclaringType().hasFullyQualifiedName("System", "Activator") and
+      (
+        (
+           // Activator.CreateInstance (...)
+          c.getTarget().hasName("CreateInstance") and
+          c.getArgument(0) = this.asExpr()
+        )
+      )
+    )
+  }
+}
+
+/**
+ * Sink for dangerous file operations.
+ * 
+ * There is a lot of room for improvement.
+ */
+private class DangerousFileOperationSink extends Sink {
+  DangerousFileOperationSink() {
+    exists(MethodCall c, Method m |
+      c.getTarget() = m and
+
+      // Select interesting classes
+      m.getDeclaringType*().hasFullyQualifiedName("System.IO", 
+        ["FileStream", "Stream", "File", "Directory", "BinaryWriter", "MemoryStream", "StreamWriter", "StringWriter", "TextWriter"]
+      ) and
+
+      // filter methods
+      m.getName().matches(["%Write%", "%Create%", "%Append%", "%Delete%", "%Open%", "%Replace%", "%Move%", "%Copy%"]) and
+
+      // filter arguments
+      this.getExpr() = c.getArgumentForName(["path", "buffer", "value", "content", "contents"])
+    ) or
+    exists( Constructor m |
+      m.getDeclaringType*().hasFullyQualifiedName("System.IO", "FileStream") and
+      this.getExpr() = m.getACall().getArgumentForName("path")
+    )
+
+  }
+}
+
+/**
  * Sinks stolen from other built-in queries.
  */
 class ExternalDangerousSink extends Sink {
@@ -97,6 +236,7 @@ class ExternalDangerousSink extends Sink {
     this instanceof UnsafeDeserialization::Sink
     or this instanceof CodeInjection::Sink
     or this instanceof CommandInjection::Sink
+    // replaced by DangerousFileOperationSink
     //or this instanceof TaintedPath::Sink
     or this instanceof XmlEntityInjection::Sink
     or this instanceof ResourceInjection::Sink
