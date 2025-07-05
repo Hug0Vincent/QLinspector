@@ -11,11 +11,11 @@ import csharp
 import libs.KnownGadgets
 import libs.GadgetTaintHelpers
 
-from AssignableMember member, Type memberType, Type declaringType
+from Field f, Type memberType, Type declaringType
 where 
-  member.getType() instanceof KnownDangerousType and
-  not member.getAnAttribute().getType() instanceof NotSerializedAttributeClass and
-  member.getDeclaringType().getAnAttribute().getType() instanceof SerializedAttributeClass and
-  memberType = member.getType() and
-  declaringType = member.getDeclaringType()
-select member, "Dangerous member $@ of type $@", member, member.getName(), memberType, memberType.getName()
+  f.getType() instanceof KnownDangerousType and
+  not f.getAnAttribute().getType() instanceof NotSerializedAttributeClass and
+  f.getDeclaringType().getAnAttribute().getType() instanceof SerializedAttributeClass and
+  memberType = f.getType() and
+  declaringType = f.getDeclaringType()
+select f, "Dangerous member $@ of type $@", f, f.getName(), memberType, memberType.getName()
