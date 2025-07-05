@@ -2,6 +2,28 @@ import csharp
 
 abstract class KnownDangerousType extends Type {}
 
+/**
+ * To catch all *Identity gadgets
+ */
+class IIdentityType extends KnownDangerousType {
+  IIdentityType() {
+    this.hasFullyQualifiedName("System.Security.Principal", "IIdentity")
+  }
+}
+
+/**
+ * To catch all *Principal gadgets
+ */
+class IPrincipalType extends KnownDangerousType {
+  IPrincipalType() {
+    this.hasFullyQualifiedName("System.Security.Claims", "IPrincipal")
+  }
+}
+
+/**
+ * Keep all the Identity / Principal gadget here to avoid
+ * transitive type search. Maybe it's useless.
+ */
 class ClaimsIdentityType extends KnownDangerousType {
   ClaimsIdentityType() {
     this.hasFullyQualifiedName("System.Security.Claims", "ClaimsIdentity")
