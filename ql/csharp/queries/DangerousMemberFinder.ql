@@ -11,9 +11,15 @@ import csharp
 import libs.KnownGadgets
 import libs.GadgetTaintHelpers
 
+predicate isDangerousType(Type t){
+  t instanceof KnownDangerousType or
+  t instanceof IIdentityType or 
+  t instanceof IPrincipalType
+}
+
 from Field f, Type memberType, Type declaringType
 where 
-  f.getType() instanceof KnownDangerousType and
+  isDangerousType(f.getType()) and
   not f.getAnAttribute().getType() instanceof NotSerializedAttributeClass and
   f.getDeclaringType().getAnAttribute().getType() instanceof SerializedAttributeClass and
   memberType = f.getType() and

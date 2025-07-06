@@ -5,7 +5,7 @@ abstract class KnownDangerousType extends Type {}
 /**
  * To catch all *Identity gadgets
  */
-class IIdentityType extends KnownDangerousType {
+class IIdentityType extends Type {
   IIdentityType() {
     this.hasFullyQualifiedName("System.Security.Principal", "IIdentity")
   }
@@ -14,7 +14,7 @@ class IIdentityType extends KnownDangerousType {
 /**
  * To catch all *Principal gadgets
  */
-class IPrincipalType extends KnownDangerousType {
+class IPrincipalType extends Type {
   IPrincipalType() {
     this.hasFullyQualifiedName("System.Security.Claims", "IPrincipal")
   }
