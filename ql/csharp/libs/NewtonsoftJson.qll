@@ -9,7 +9,8 @@ import libs.GadgetTaintHelpers
 class JsonSerializableType extends SerializableType {
 
     // Every type is serializable
-    JsonSerializableType() { any() }
+    JsonSerializableType() { this.getAConstructor()  instanceof JsonConstructorSerilizationCallBack}
+    //JsonSerializableType() { none()}
 
   /**
    * Json.NET deserialization callbacks, like methods marked with [OnDeserializing]/[OnDeserialized] or constructors.
@@ -65,20 +66,20 @@ class JsonConstructor extends Constructor {
  */
 abstract class JsonSerilizationCallBack extends Callable {}
 
-class JsonConstructorSerilizationCallBack extends JsonSerilizationCallBack {
+class JsonConstructorSerilizationCallBack extends JsonSerilizationCallBack, Constructor {
     JsonConstructorSerilizationCallBack(){
       this instanceof JsonConstructor
       or
       // Public parameterless constructor
       (
-        this.(Constructor).getNumberOfParameters() = 0 and 
-        this.(Constructor).isPublic()
+        this.getNumberOfParameters() = 0 and 
+        this.isPublic()
       )
       or
       // Single public constructor with parameters
       (
         count(Constructor c |c = this.getDeclaringType().getAConstructor()) = 1 and
-        this.(Constructor).isPublic()
+        this.isPublic()
       )
     }
 }
