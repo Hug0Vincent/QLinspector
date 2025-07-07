@@ -75,7 +75,7 @@ int pathLengthBetweenNodes(GadgetFinder::PathNode src, GadgetFinder::PathNode ds
   or
   exists(GadgetFinder::PathNode intermediate |
       intermediate.getASuccessor() = dst and
-      result <= 42 and
+      result <= 10 and
       result = pathLengthBetweenNodes(src, intermediate) + 1
     )
 }
@@ -93,6 +93,5 @@ int pathLengthBetweenNodes(GadgetFinder::PathNode src, GadgetFinder::PathNode ds
 module GadgetFinder = TaintTracking::Global<GadgetFinderConfig>;
 
 from GadgetFinder::PathNode source, GadgetFinder::PathNode sink
-where GadgetFinder::flowPath(source, sink) and
-pathLengthBetweenNodes(source, sink) <= 42
+where GadgetFinder::flowPath(source, sink)
 select sink.getNode(), source, sink, "Gadget from $@", source.getNode(), getSourceLocationInfo(source.getNode())
