@@ -14,5 +14,6 @@ import libs.GadgetTaintHelpers
 from RefType t, RefType dangerousType
 where 
   dangerousType instanceof KnownDangerousType and
-  dangerousType.getASubType() = t
+  dangerousType.getASubType() = t and
+  t.getAnAttribute().getType() instanceof SerializedAttributeClass
 select t, "Type $@ is a sub type of dangerous type $@", t, t.getName(), dangerousType, dangerousType.getName()
