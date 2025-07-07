@@ -13,7 +13,6 @@ import GadgetFinder::PathGraph
 import libs.Sources as Sources
 import libs.DangerousMethods as DangerousMethods
 import libs.GadgetTaintHelpers
-private import semmle.code.csharp.dataflow.internal.DataFlowPrivate as DataFlowPrivate
 
 private module GadgetFinderConfig implements DataFlow::ConfigSig {
   
@@ -29,6 +28,7 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
    */
   predicate isSink(DataFlow::Node sink) {
     sink instanceof DangerousMethods::Sink
+    //sink instanceof DangerousMethods::ExternalDangerousSink
   }
 
   /**
@@ -70,6 +70,16 @@ class GenericGadgetSanitizer extends GadgetSanitizer {
   }
 }
 
+int pathLengthBetweenNodes(GadgetFinder::PathNode src, GadgetFinder::PathNode dst) {
+  (result = 0 and src = dst)
+  or
+  exists(GadgetFinder::PathNode intermediate |
+      intermediate.getASuccessor() = dst and
+      result <= 42 and
+      result = pathLengthBetweenNodes(src, intermediate) + 1
+    )
+}
+
 //class ControlGadgetSanitizer extends GadgetSanitizer {
 //  ControlGadgetSanitizer() {
 //    exists(AssignableMemberAccess acc, AssignableMember m |
@@ -83,5 +93,6 @@ class GenericGadgetSanitizer extends GadgetSanitizer {
 module GadgetFinder = TaintTracking::Global<GadgetFinderConfig>;
 
 from GadgetFinder::PathNode source, GadgetFinder::PathNode sink
-where GadgetFinder::flowPath(source, sink)
+where GadgetFinder::flowPath(source, sink) and
+pathLengthBetweenNodes(source, sink) <= 42
 select sink.getNode(), source, sink, "Gadget from $@", source.getNode(), getSourceLocationInfo(source.getNode())
