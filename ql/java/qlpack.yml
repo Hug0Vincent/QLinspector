@@ -5,5 +5,4 @@ library: false
 authors: hugow
 dependencies:
   codeql/java-all: "*"
-defaultSuite:
-  query: queries/QLinspector.ql
+defaultSuiteFile: suites/qlinspector-java.qls
