@@ -109,16 +109,22 @@ function Export-DotNetDlls {
     Write-Host "[+] JSON results will be saved to: $DestinationFile"
 
     $assemblies = @()
+    $seen = @{}
 
     Get-ChildItem -Path $RootFolder -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue |
     ForEach-Object {
         try {
             $assembly = [System.Reflection.AssemblyName]::GetAssemblyName($_.FullName)
-            $assemblies += [PSCustomObject]@{
-                Name    = $assembly.Name
-                Version = $assembly.Version.ToString()
-                Path    = $_.FullName
-                QL      = @{}
+            $name = $assembly.Name.ToLowerInvariant()
+
+            if (-not $seen.ContainsKey($name)) {
+                $seen[$name] = $true
+                $assemblies += [PSCustomObject]@{
+                    Name    = $assembly.Name
+                    Version = $assembly.Version.ToString()
+                    Path    = $_.FullName
+                    QL      = @{}
+                }
             }
         } catch {
             # Skip non-.NET DLLs silently
