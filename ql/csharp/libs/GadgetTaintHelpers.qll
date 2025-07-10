@@ -66,35 +66,6 @@ class SerializableAssignableTaintStep extends GadgetAdditionalTaintStep {
 }
 
 /**
- * Not perfect but it works. `TaintInheritingContents` not available in csharp
- * We taint each `AssignableMemberAccess` (Field /Member) if it's accessed from
- * a GadgetSource Callable.
- * 
- * This is useful for deserilization callbacks.
- */
-class GadgetSourceAssignableMemberAccess extends AssignableMemberAccess {
-    GadgetSourceAssignableMemberAccess(){
-        exists(Callable c, AssignableMember f | 
-            this.getEnclosingCallable() = c and
-            reachableFromOnDeserialized(c) and
-            this = f.getAnAccess() and
-            f instanceof SerializableMember
-        )
-    }
-}
-
-/**
- * Hold if there is a path between a `GadgetSource` method 
- * and `dst`.
- */
-predicate reachableFromOnDeserialized(Callable dst) {
-  exists(Callable src |
-    src instanceof GadgetSource and 
-    src.calls*(dst)
-  )
-}
-
-/**
    * A field/property that can be serialized.
    */
   abstract class SerializableMember extends AssignableMember {}
@@ -149,6 +120,13 @@ predicate isStringOrGeneric(Type t) {
   t instanceof TypeParameter or
   t instanceof ObjectType
 }
+
+predicate isGenericType(Type t) {
+  t instanceof TypeParameter or
+  t instanceof ObjectType
+}
+
+ValueOrRefType getASuperType(ValueOrRefType t) { t.getABaseType() = result }
 
 /**
  * Try to get a callable from a node.
