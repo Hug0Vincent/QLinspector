@@ -2,6 +2,7 @@ import csharp
 import semmle.code.csharp.serialization.Serialization
 import NewtonsoftJson
 private import semmle.code.csharp.dataflow.internal.DataFlowPrivate as DataFlowPrivate
+import semmle.code.csharp.dispatch.OverridableCallable
 
 /**
  * A data flow source for a gadget.
@@ -36,6 +37,16 @@ class GetterSource extends Source {
     }
 }
 */
+
+class ObjectMethodSource extends Source {
+    ObjectMethodSource(){
+        exists(OverridableCallable baseMethod, SerializableType t |
+            baseMethod.getDeclaringType() instanceof ObjectType and
+            baseMethod.hasName(["ToString"]) and
+            this.(DataFlowPrivate::InstanceParameterNode).getCallable(_) = baseMethod.getInherited(t)
+        )
+    }
+}
 
 class GadgetSource extends Callable {
     GadgetSource(){
