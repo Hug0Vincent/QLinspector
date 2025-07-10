@@ -39,18 +39,21 @@ $ codeql database analyze System.Web --format=sarif-latest --output=System.Web.s
 
 [Here](../../scripts/powershell-ql-helpers.ps1) you can find some powershell helpers to automate the process of searching gadgets in multiple DLLs.
 
+> [!NOTE]
+> JQ must be downloaded for this.
+
 1) Initialize some global variables:
 ```powershell
 PS F:\> . ./scripts/powershell-ql-helpers.ps1
-PS F:\> Set-CodeQLGlobalPaths -DnSpyExCliPath ... -DnSpyOut ... -CodeQLPath ... -CodeQLDbOut ... -QueryPath ./ql/csharp/queries/ -SarifOut ...
+PS F:\> Set-CodeQLGlobalPaths -DnSpyExCliPath ... -DnSpyOut ... -CodeQLPath ... -CodeQLDbOut ... -QueryPath ./ql/csharp/queries/ -SarifOut ... -JQPath ...
 ```
 
-2) Gather all dotnet DLLs from a specific path:
+1) Gather all dotnet DLLs from a specific path:
 ```powershell
 PS F:\> Export-DotNetDlls -RootFolder "C:\Windows\Microsoft.NET\assembly\GAC_MSIL\" -DestinationFile "C:\output\assemblies.json"
 ```
 
-3) Loop over all DLLs and run the gadget queries:
+1) Loop over all DLLs and run the gadget queries:
 ```powershell
 PS F:\> Analyze-AllAssemblies -JsonPath "C:\output\assemblies.json"
 ```
