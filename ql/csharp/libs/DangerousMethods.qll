@@ -1,6 +1,7 @@
 import csharp
 import GadgetTaintHelpers
 import RequestForgery as RequestForgery 
+import SystemManagement
 private import semmle.code.csharp.security.dataflow.flowsinks.FlowSinks
 import semmle.code.csharp.security.dataflow.UnsafeDeserializationQuery as UnsafeDeserialization
 import semmle.code.csharp.security.dataflow.CodeInjectionQuery as CodeInjection 
@@ -215,21 +216,48 @@ private class DangerousFileOperationSink extends Sink {
       c.getTarget() = m and
 
       // Select interesting classes
-      m.getDeclaringType*().hasFullyQualifiedName("System.IO", 
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.IO", 
         ["FileStream", "Stream", "File", "Directory", "BinaryWriter", "MemoryStream", "StreamWriter", "StringWriter", "TextWriter"]
       ) and
 
       // filter methods
-      m.getName().matches(["%Write%", "%Create%", "%Append%", "%Delete%", "%Open%", "%Replace%", "%Move%", "%Copy%"]) and
+      m.getName().matches(["%Write%", "%Create%", "%Append%", "%Delete%", "%Open%", "%Replace%", "%Move%", "%Copy%", "Exists"]) and
 
       // filter arguments
       this.getExpr() = c.getArgumentForName(["path", "buffer", "value", "content", "contents"])
     ) or
     exists( Constructor m |
-      m.getDeclaringType*().hasFullyQualifiedName("System.IO", "FileStream") and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.IO", "FileStream") and
       this.getExpr() = m.getACall().getArgumentForName("path")
     )
 
+  }
+}
+
+/**
+ * Sink for dangerous classes in System.Management like this:
+ */
+private class DangerousManagementSink extends Sink {
+  DangerousManagementSink(){
+    this.asExpr() = any(ManagementSink m).getASink()
+  }
+}
+
+private class PSAutomationSink extends Sink {
+  PSAutomationSink(){
+    exists(Callable m, Call c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System.Management.Automation", "Powershell") and
+
+      m.hasName(["AddCommand", "Create", "AddScript"]) and
+      this.getExpr() = c.getArgument(0)  
+    )
+    or
+    exists(Property p |
+      p.hasName("Commands") and
+      p.getDeclaringType().hasFullyQualifiedName("System.Management.Automation", "Powershell") and
+      p.getAnAssignedValue() = this.asExpr()
+    )
   }
 }
 
