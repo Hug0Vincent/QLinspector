@@ -70,26 +70,6 @@ class GenericGadgetSanitizer extends GadgetSanitizer {
   }
 }
 
-int pathLengthBetweenNodes(GadgetFinder::PathNode src, GadgetFinder::PathNode dst) {
-  (result = 0 and src = dst)
-  or
-  exists(GadgetFinder::PathNode intermediate |
-      intermediate.getASuccessor() = dst and
-      result <= 10 and
-      result = pathLengthBetweenNodes(src, intermediate) + 1
-    )
-}
-
-//class ControlGadgetSanitizer extends GadgetSanitizer {
-//  ControlGadgetSanitizer() {
-//    exists(AssignableMemberAccess acc, AssignableMember m |
-//      acc.getTarget() = m and
-//      m.getType().hasFullyQualifiedName("System.Windows.Forms", "Control") and
-//      this.asExpr() = acc
-//    )
-//  }
-//}
-
 module GadgetFinder = TaintTracking::Global<GadgetFinderConfig>;
 
 from GadgetFinder::PathNode source, GadgetFinder::PathNode sink
