@@ -35,6 +35,9 @@ function Set-CodeQLGlobalPaths {
     .PARAMETER SarifOut
         Optional. Output path for SARIF result files.
 
+    .PARAMETER JQPath
+        Optional. Full path to jq.exe.
+
     .EXAMPLE
         Set-CodeQLGlobalPaths -CodeQLPath "D:\tools\codeql.exe"
 
@@ -45,11 +48,12 @@ function Set-CodeQLGlobalPaths {
     # default value to match my own values.
     param (
         [string]$DnSpyExCliPath  = "F:\tools\dnSpy-net-win64\dnSpy.Console.exe",
-        [string]$DnSpyOut   = "C:\Users\user\Documents\Pentest\RD\Gadgets\Sources\",
-        [string]$CodeQLPath = "C:\Users\user\Documents\Pentest\Tools\codeql-bundle\codeql\codeql.exe",
-        [string]$CodeQLDbOut = "C:\Users\user\Documents\Pentest\RD\Gadgets\Files\Codeql\Databases",
-        [string]$QueryPath   = "F:\tools\QLinspector\ql\csharp\queries\",
-        [string]$SarifOut    = "C:\Users\user\Documents\Pentest\RD\Gadgets\Files\Codeql\Sarif"
+        [string]$DnSpyOut        = "C:\Users\user\Documents\Pentest\RD\Gadgets\Sources\",
+        [string]$CodeQLPath      = "C:\Users\user\Documents\Pentest\Tools\codeql-bundle\codeql\codeql.exe",
+        [string]$CodeQLDbOut     = "C:\Users\user\Documents\Pentest\RD\Gadgets\Files\Codeql\Databases",
+        [string]$QueryPath       = "F:\tools\QLinspector\ql\csharp\queries\",
+        [string]$SarifOut        = "C:\Users\user\Documents\Pentest\RD\Gadgets\Files\Codeql\Sarif",
+        [string]$JQPath          = "C:\Users\user\Documents\Pentest\Tools\jq-windows-amd64.exe"
     )
 
     $global:DnSpyExCliPath            = $DnSpyExCliPath
@@ -58,6 +62,7 @@ function Set-CodeQLGlobalPaths {
     $global:CodeQLDatabasesOutputRoot = $CodeQLDbOut
     $global:QLinspectorQueriesPath    = $QueryPath
     $global:SarifOutputRoot           = $SarifOut
+    $global:JQLCliPath                = $JQPath
 
     Write-Host "[+] Global CodeQL environment paths set:"
     Write-Host "    dnSpy Path         : $DnSpyExCliPath"
@@ -66,6 +71,7 @@ function Set-CodeQLGlobalPaths {
     Write-Host "    CodeQL DB Output   : $CodeQLDatabasesOutputRoot"
     Write-Host "    Query Path         : $QLinspectorQueriesPath"
     Write-Host "    SARIF Output       : $SarifOutputRoot"
+    Write-Host "    Jq path            : $JQLCliPath"
 }
 
 
@@ -114,15 +120,23 @@ function Export-DotNetDlls {
     Get-ChildItem -Path $RootFolder -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue |
     ForEach-Object {
         try {
+            $fileInfo = Get-Item $_.FullName
             $assembly = [System.Reflection.AssemblyName]::GetAssemblyName($_.FullName)
             $name = $assembly.Name.ToLowerInvariant()
 
             if (-not $seen.ContainsKey($name)) {
                 $seen[$name] = $true
+
+                # Calculate size in MB and cast to integer
+                # Note: FileInfo.Length is in bytes.
+                $sizeBytes = $fileInfo.Length
+                $sizeMB = [Math]::Round($sizeBytes / 1MB, 2) # 1MB is a PowerShell automatic variable for 1024*1024 bytes
+
                 $assemblies += [PSCustomObject]@{
                     Name    = $assembly.Name
                     Version = $assembly.Version.ToString()
                     Path    = $_.FullName
+                    SizeMB  = $sizeMB
                     QL      = @{}
                 }
             }
@@ -236,70 +250,20 @@ function Create-CodeQLDatabase {
     }
 }
 
-function Run-CodeQLQuery {
-    <#
-    .SYNOPSIS
-    Runs a CodeQL query against a CodeQL database and generates a SARIF report.
-
-    .DESCRIPTION
-    Analyzes a CodeQL database using a specified or default query, outputting results in SARIF format.
-
-    .PARAMETER DatabaseFolder
-    Path to the CodeQL database folder.
-
-    .PARAMETER QueryPath
-    Path to the CodeQL query to run. Defaults to QLinspector.ql if not provided.
-
-    .EXAMPLE
-    Run-CodeQLQuery -DatabaseFolder "C:\CodeQL\DBs\MyLibrary"
-    #>
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$DatabaseFolder,
-
-        [string]$QueryPath = $QLinspectorQueriesPath
-    )
-
-    # Validate database folder
-    if (-not (Test-Path $DatabaseFolder)) {
-        Write-Error "Database folder '$DatabaseFolder' does not exist."
-        return
-    }
-
-    # Extract base name from database folder
-    $baseName = [System.IO.Path]::GetFileName($DatabaseFolder)
-    $sarifFile = Join-Path -Path $SarifOutputRoot -ChildPath "$baseName.sarif"
-
-    # Ensure output folder exists
-    if (-not (Test-Path $SarifOutputRoot)) {
-        New-Item -ItemType Directory -Path $SarifOutputRoot -Force | Out-Null
-    }
-
-    # Run CodeQL analysis
-    & $CodeQLCliPath database analyze "$DatabaseFolder" "$QueryPath" --no-sarif-add-file-contents --no-sarif-add-snippets --max-paths=1 --format="sarif-latest" --output="$sarifFile"
-
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "[+] SARIF report saved to: $sarifFile"
-        Get-SarifResultCount -SarifPath $sarifFile
-    } else {
-        Write-Error "[x] CodeQL query failed."
-    }
-}
 
 function Get-SarifResultCount {
     <#
     .SYNOPSIS
-    Counts the number of results in a SARIF report.
+        Counts the number of results in a SARIF report using jq.
 
     .DESCRIPTION
-    Parses a SARIF file and displays the total number of findings.
+        Uses the jq CLI to parse the SARIF file and count results in the first run block.
 
     .PARAMETER SarifPath
-    Path to the SARIF file.
+        Path to the SARIF file.
 
     .EXAMPLE
-    Get-SarifResultCount -SarifPath "C:\Reports\MyLibrary.sarif"
+        Get-SarifResultCount -SarifPath "C:\Reports\MyLibrary.sarif"
     #>
     [CmdletBinding()]
     param (
@@ -313,32 +277,168 @@ function Get-SarifResultCount {
     }
 
     try {
-        $sarifContent = Get-Content $SarifPath -Raw | ConvertFrom-Json
+        $jqQuery = 'if (.runs | length) > 0 and .runs[0].results then .runs[0].results | length else 0 end'
+        $resultCount = & $JQLCliPath $jqQuery "$SarifPath" 2>$null
 
-        if ($sarifContent.runs.Count -eq 0 -or -Not $sarifContent.runs[0].results) {
-            Write-Host "[+] No results found in SARIF file."
-            return 0
+        if (-Not $?) {
+            Write-Error "jq failed to parse the SARIF file."
+            return
         }
 
-        $resultCount = $sarifContent.runs[0].results.Count
-        Write-Host "[+] Total results found: $resultCount"
+        if ($resultCount -match '^\d+$') {
+            Write-Host "[+] Total results found: $resultCount"
+            return [int]$resultCount
+        } else {
+            Write-Warning "[!] No results found or unexpected format."
+            return 0
+        }
     }
     catch {
-        Write-Error "Failed to parse SARIF file: $_"
+        Write-Error "Unexpected error: $_"
+        return
     }
 }
+
+function Filter-SarifByThreadFlowLength {
+    <#
+    .SYNOPSIS
+        Filters SARIF results based on maximum thread flow step count using jq.
+
+    .PARAMETER InputSarif
+        Path to the input SARIF file.
+
+    .PARAMETER OutputSarif
+        (Optional) Path to write the filtered SARIF file. If not specified, appends -filter-<max>.sarif to the input name.
+
+    .PARAMETER MaxSteps
+        Maximum allowed steps (locations) in threadFlows[0]. Only results below or equal to this are kept.
+        Default is 30.
+
+    .EXAMPLE
+        Filter-SarifByThreadFlowLength -InputSarif "report.sarif"
+        # Filters thread flows with max 30 steps and outputs report-filter-30.sarif
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$InputSarif,
+
+        [string]$OutputSarif,
+
+        [int]$MaxSteps = 42
+    )
+
+    if (-Not (Test-Path $InputSarif)) {
+        Write-Error "Input SARIF file not found: $InputSarif"
+        return
+    }
+
+    if (-not $OutputSarif) {
+        $base = [System.IO.Path]::GetFileNameWithoutExtension($InputSarif)
+        $dir = [System.IO.Path]::GetDirectoryName($InputSarif)
+        $OutputSarif = Join-Path $dir "$base-filtered-$MaxSteps.sarif"
+    }
+
+    $jqQuery = @"
+.runs[0].results |= map(
+    select(
+        (.codeFlows | not) or
+        (
+            .codeFlows | all(
+                .threadFlows | all(
+                    (.locations | length) <= $MaxSteps
+                )
+            )
+        )
+    )
+)
+"@
+
+    try {
+        & $JQLCliPath $jqQuery "$InputSarif" | Out-File -FilePath "$OutputSarif" -Encoding UTF8
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "jq failed to filter the SARIF file."
+            return
+        }
+
+        Write-Host "[+] Filtered SARIF written to: $OutputSarif"
+    }
+    catch {
+        Write-Error "Unexpected error while running jq: $_"
+    }
+}
+
+function Get-ShortestSarifPaths {
+    <#
+    .SYNOPSIS
+        Extracts and returns the shortest thread flow path lengths from a SARIF file using jq.
+
+    .PARAMETER SarifPath
+        Path to the SARIF file.
+
+    .PARAMETER Top
+        The number of shortest path lengths to return. Default is 20.
+
+    .OUTPUTS
+        An array of integers representing thread flow lengths.
+
+    .EXAMPLE
+        $paths = Get-ShortestSarifPaths -SarifPath "report.sarif"
+        # Stores the 20 shortest lengths in $paths
+
+        Get-ShortestSarifPaths -SarifPath "report.sarif" -Top 5
+        # Returns the 5 shortest
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$SarifPath,
+
+        [int]$Top = 20
+    )
+
+    if (-Not (Test-Path $SarifPath)) {
+        Write-Error "SARIF file not found: $SarifPath"
+        return $null
+    }
+
+    $jqQuery = "[.runs[].results[]?.codeFlows[]?.threadFlows[0]?.locations? | length | select(. > 0)] | sort | .[:$Top]"
+
+    try {
+        $shortestPathsJson = & $JQLCliPath "$jqQuery" "$SarifPath" 2>$null
+
+        if ($LASTEXITCODE -ne 0 -or -not $shortestPathsJson) {
+            Write-Error "Failed to extract data using jq."
+            return $null
+        }
+
+        return $shortestPathsJson | ConvertFrom-Json
+    }
+    catch {
+        Write-Error "Error while processing SARIF file: $_"
+        return $null
+    }
+}
+
 
 
 function Analyze-DllWithCodeQL {
     <#
     .SYNOPSIS
-        Complete pipeline to decompile a DLL, create a CodeQL database, optionally run a CodeQL query,
-        and optionally delete the database afterward.
+        Complete pipeline to decompile a DLL, create a CodeQL database, run one or more CodeQL queries,
+        and optionally delete the database afterward. Supports timeouts and RAM limits.
 
     .DESCRIPTION
-        Decompiles the specified DLL, creates a CodeQL database, and optionally runs a CodeQL query to analyze it.
-        You can provide either a direct DLL path or an assembly name present in the JSON file.
-        The Delete switch will remove the generated solution and CodeQL database after the query (if any) is run.
+        Decompiles the specified DLL and creates a CodeQL database for it.
+
+        You can provide either a direct DLL path or an assembly name from a JSON file. After database creation,
+        the function runs one or more specified CodeQL queries unless disabled via -RunQuery:$false.
+
+        Optionally, the database and temporary solution files can be deleted using -Delete.
+        The process supports custom timeout and memory constraints for large analyses.
 
     .PARAMETER DllPath
         Full path to the DLL to analyze. Required if using the 'ByDllPath' parameter set.
@@ -349,17 +449,26 @@ function Analyze-DllWithCodeQL {
     .PARAMETER JsonPath
         Optional path to the JSON metadata file (used only with AssemblyName lookup).
 
+    .PARAMETER Queries
+        One or more CodeQL query files or QL packs to run against the DLL's CodeQL database.
+
     .PARAMETER RunQuery
-        Indicates whether to run the CodeQL query after creating the database. Defaults to $true.
+        Indicates whether to run the CodeQL query or queries after creating the database. Defaults to $true.
 
     .PARAMETER Delete
-        If specified, deletes the generated CodeQL database after analysis.
+        If specified, deletes the generated CodeQL database and temporary files after analysis.
+
+    .PARAMETER TimeoutSeconds
+        Optional. The maximum allowed time (in seconds) to run each CodeQL query. Default is 3600 seconds (1 hour).
+
+    .PARAMETER Ram
+        Optional. The amount of RAM (in MB) to allocate for the CodeQL analysis.
 
     .EXAMPLE
-        Analyze-DllWithCodeQL -DllPath "C:\Projects\MyLibrary.dll"
+        Analyze-DllWithCodeQL -DllPath "C:\Projects\MyLibrary.dll" -Queries ".\queries\taint.ql"
 
     .EXAMPLE
-        Analyze-DllWithCodeQL -AssemblyName "MyLibrary" -JsonPath ".\assemblies.json" -Delete
+        Analyze-DllWithCodeQL -AssemblyName "MyLibrary" -JsonPath ".\assemblies.json" -Queries "taint.ql" -Delete
 
     #>
     [CmdletBinding(DefaultParameterSetName = 'ByDllPath')]
@@ -373,11 +482,20 @@ function Analyze-DllWithCodeQL {
         [Parameter(Mandatory = $false, ParameterSetName = 'ByAssemblyName')]
         [string]$JsonPath,
 
+        [Parameter(Mandatory=$true, HelpMessage="One or more ql query.")]
+        [string[]]$Queries,
+
         [Parameter()]
         [bool]$RunQuery = $true,
 
         [Parameter()]
-        [switch]$Delete
+        [switch]$Delete,
+
+        [Parameter()]
+        [int]$TimeoutSeconds = 3600,  # 1 hour default
+
+        [Parameter()]
+        [int]$Ram
 
     )
 
@@ -421,13 +539,14 @@ function Analyze-DllWithCodeQL {
         $DatabaseFolder = Join-Path -Path $CodeQLDatabasesOutputRoot -ChildPath $DllName
         Write-Host "[+] Step 3: Running CodeQL queries on $DllName..."
 
-        Run-CodeQLQuery-And-Update -AssemblyName $DllName -JsonPath $JsonPath -QueryName "DangerousTypeFinder.ql"
-        Run-CodeQLQuery-And-Update -AssemblyName $DllName -JsonPath $JsonPath -QueryName "QLinspector.ql"
+        foreach ($query in $Queries) {
+            Run-CodeQLQuery-And-Update -AssemblyName $DllName -JsonPath $JsonPath -QueryName $query -TimeoutSeconds $TimeoutSeconds -Ram $Ram
+        }
 
         if ($Delete -and (Test-Path $DatabaseFolder)) {
             Write-Host "[+] Deleting CodeQL database folder: $DatabaseFolder"
             Remove-Folder-Robust -Path $DatabaseFolder
-            Remove-Item -Recurse -Force -Path $SolutionFolder
+            #Remove-Item -Recurse -Force -Path $SolutionFolder
         }
     } else {
         Write-Host "[+] Step 3: Skipped running CodeQL query."
@@ -439,28 +558,53 @@ function Analyze-DllWithCodeQL {
 function Analyze-AllAssemblies {
     <#
     .SYNOPSIS
-        Analyzes all assemblies listed in a JSON file using CodeQL, skipping already analyzed ones.
+        Runs CodeQL analysis on multiple .NET assemblies, skipping those already processed.
 
     .DESCRIPTION
-        This function loads a list of .NET assemblies from a specified JSON file, checks if they
-        have already been analyzed (by inspecting the "QL" results section), and runs a CodeQL
-        analysis on each unprocessed DLL.
+        This function reads a JSON file containing a list of .NET assemblies (DLLs) —
+        typically the output of `Export-DotNetDlls`. It checks each entry to see if
+        CodeQL analysis results already exist under the "QL" section.
 
-        If a DLL has already been analyzed, the function will skip it. Otherwise, it invokes the 
-        analysis and updates the results.
+        For each DLL that has not yet been analyzed, it runs the specified CodeQL query/queries.
+        The analysis is subject to an optional timeout and memory usage limit.
+
+        After analysis, results are saved or updated accordingly in the JSON file.
 
     .PARAMETER JsonPath
-        The full path to the assemblies JSON file. It's the output of the Export-DotNetDlls command.
+        The full path to the input JSON file containing the list of assemblies and their metadata.
+
+    .PARAMETER Queries
+        One or more CodeQL query files or QL packs to run against each DLL.
+
+    .PARAMETER TimeoutSeconds
+        Optional. The maximum allowed time (in seconds) for analyzing a single DLL.
+        Default is 3600 seconds (1 hour).
+
+    .PARAMETER Ram
+        Optional. The amount of RAM (in MB) to allocate for each CodeQL database analyze run.
 
     .EXAMPLE
-        Analyze-AllAssemblies -JsonPath ".\assemblies.json"
+        Analyze-AllAssemblies -JsonPath ".\assemblies.json" -Queries ".\queries\myquery.ql"
 
-        Runs CodeQL analysis on all DLLs listed in `assemblies.json`, skipping those already analyzed.
+        Analyzes all unprocessed DLLs in `assemblies.json` using the specified CodeQL query.
 
+    .EXAMPLE
+        Analyze-AllAssemblies -JsonPath ".\assemblies.json" -Queries "qlpack1", "qlpack2" -Ram 8192 -TimeoutSeconds 1800
+
+        Analyzes each DLL using multiple QL packs, with a 30-minute timeout and 8 GB RAM limit.
     #>
     param (
         [Parameter(Mandatory = $true)]
-        [string]$JsonPath
+        [string]$JsonPath,
+
+        [Parameter(Mandatory=$true, HelpMessage="One or more ql query.")]
+        [string[]]$Queries,
+
+        [Parameter()]
+        [int]$TimeoutSeconds = 3600,  # 1 hour default
+
+        [Parameter()]
+        [int]$Ram
     )
 
     if (-not (Test-Path $JsonPath)) {
@@ -480,16 +624,21 @@ function Analyze-AllAssemblies {
         }
 
         $index = Get-AssemblyIndex -JsonContent $JsonContent -AssemblyName $DllName
+
+        $skip = $true
+        foreach ($query in $Queries) {
+            if (-not $JsonContent.assemblies[$index].QL.$query) {
+                $skip = $false
+                break
+            }
+        }
     
-        if($JsonContent.assemblies[$index].QL."DangerousTypeFinder.ql" -and $JsonContent.assemblies[$index].QL."DangerousTypeFinder.ql"){
+        if($skip){
             Write-Host "[+] Analysis already done for $DllName, skipping."
             return
-
         }else{
-
             Write-Host "[*] Analyzing assembly: $dllName"
-            Analyze-DllWithCodeQL -DllPath $dllPath -Delete
-        
+            Analyze-DllWithCodeQL -AssemblyName $dllName -JsonPath $JsonPath -Delete -Queries $Queries -Ram $Ram -TimeoutSeconds $TimeoutSeconds
         }
     }
 }
@@ -532,36 +681,6 @@ function Save-Json {
     }
     catch {
         Write-Error "Failed to save JSON to $JsonPath. $_"
-    }
-}
-
-
-
-function Add-AssemblyToJson {
-    param (
-        [Parameter(Mandatory = $true)]
-        [psobject]$JsonContent,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Name,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Version,
-
-        [Parameter(Mandatory = $true)]
-        [string]$Path
-    )
-
-    $existing = $JsonContent.assemblies | Where-Object { $_.Name -eq $Name -and $_.Path -eq $Path }
-
-    if (-not $existing) {
-        $assembly = [PSCustomObject]@{
-            Name    = $Name
-            Version = $Version
-            Path    = $Path
-            QL      = @{}
-        }
-        $JsonContent.assemblies += $assembly
     }
 }
 
@@ -620,27 +739,18 @@ function Update-QueryResults {
     }
 
     try {
-        $sarif = Get-Content $SarifPath -Raw | ConvertFrom-Json
-        $results = $sarif.runs[0].results
+        $resultCount = Get-SarifResultCount -SarifPath $SarifPath
 
-        $resultCount = 0
-        $pathLengths = @()
+        if($resultCount -ge 250){
+            $base = [System.IO.Path]::GetFileNameWithoutExtension($SarifPath)
+            $dir = [System.IO.Path]::GetDirectoryName($InputSarif)
+            $OutputSarif = Join-Path $dir "$base-filtered.sarif"
+            Filter-SarifByThreadFlowLength -InputSarif $SarifPath -OutputSarif $OutputSarif
 
-        if ($results) {
-            $resultCount = $results.Count
-            foreach ($result in $results) {
-                if ($result.codeFlows) {
-                    foreach ($flow in $result.codeFlows) {
-                        $steps = $flow.threadFlows[0].locations.Count
-                        if ($steps -gt 0) {
-                            $pathLengths += $steps
-                        }
-                    }
-                }
-            }
+            $SarifPath = $OutputSarif
         }
 
-        $shortest = $pathLengths | Sort-Object | Select-Object -First 20
+        $shortest = Get-ShortestSarifPaths -SarifPath $SarifPath
 
         $index = Get-AssemblyIndex -JsonContent $JsonContent -AssemblyName $AssemblyName 
 
@@ -648,7 +758,7 @@ function Update-QueryResults {
 
             $assemblyRef = $JsonContent.assemblies[$index]
             $assemblyRef.QL.$QueryName.NumberOfResults = $resultCount
-            $assemblyRef.QL.$QueryName.Top20ShortestPaths = $shortest
+            $assemblyRef.QL.$QueryName.Top20ShortestPaths = @($shortest) # weird behavior with return value
 
             $JsonContent.assemblies[$index] = $assemblyRef
         }
@@ -673,20 +783,25 @@ function Run-CodeQLQuery-And-Update {
         [string]$QueryName = "QLinspector.ql",
 
         [Parameter()]
-        [int]$TimeoutSeconds = 300
+        [int]$TimeoutSeconds = 3600,  # 1 hour default
+
+        [Parameter()]
+        [int]$Ram
     )
 
     $jsonExists = Test-Path $JsonPath
 
     # Construct full query path
-    $QueryPath = Join-Path -Path $QLinspectorQueriesPath -ChildPath $QueryName
-    if (-not (Test-Path $QueryPath)) {
-        Write-Error "Query file not found: $QueryPath"
-        return
+    if (-not (Test-Path $QueryName)) {
+        $QueryPath = Join-Path -Path $QLinspectorQueriesPath -ChildPath $QueryName
+        if (-not (Test-Path $QueryPath)) {
+            Write-Error "Query file not found: $QueryPath"
+            return
+        }
     }
 
     $DatabaseFolder = Join-Path -Path $CodeQLDatabasesOutputRoot -ChildPath $AssemblyName
-    $SarifFile = Join-Path -Path $SarifOutputRoot -ChildPath "$AssemblyName.sarif"
+    $SarifFile = Join-Path -Path $SarifOutputRoot -ChildPath "$AssemblyName-$QueryName.sarif"
 
     if (-not (Test-Path $DatabaseFolder)) {
         Write-Error "CodeQL database folder not found: $DatabaseFolder"
@@ -726,7 +841,7 @@ function Run-CodeQLQuery-And-Update {
             -not ($JsonContent.assemblies[$index].QL.$QueryName -is [PSCustomObject])) {
 
             $queryResultObject = [PSCustomObject]@{
-                Top20ShortestPaths = @{}
+                Top20ShortestPaths = @()
                 ResultStatus       = ''
                 NumberOfResults    = 0
             }
@@ -741,7 +856,7 @@ function Run-CodeQLQuery-And-Update {
     }
 
     if (-not $skipQuery) {
-        $status = Invoke-CodeQLQuery -DatabaseFolder $DatabaseFolder -QueryPath $QueryPath -SarifFile $SarifFile -TimeoutSeconds $TimeoutSeconds    
+        $status = Invoke-CodeQLQuery -DatabaseFolder $DatabaseFolder -QueryPath $QueryPath -SarifFile $SarifFile -TimeoutSeconds $TimeoutSeconds -Ram $Ram
     }
 
     if ($jsonExists) {
@@ -789,6 +904,9 @@ function Invoke-CodeQLQuery {
     .PARAMETER TimeoutSeconds
         (Optional) Timeout in seconds for the CodeQL query to complete. Default is 3600 (1 hour).
 
+    .PARAMETER Ram
+        (Optional) Maximum RAM (in MB) for the CodeQL process. Passed via `--ram`.
+
     .EXAMPLE
         Invoke-CodeQLQuery -DatabaseFolder "C:\CodeQL\DBs\MyApp" -QueryPath ".\QL\FindVulns.ql" -SarifFile ".\Results\output.sarif"
 
@@ -809,7 +927,8 @@ function Invoke-CodeQLQuery {
         [string]$DatabaseFolder,
         [string]$QueryPath,
         [string]$SarifFile,
-        [int]$TimeoutSeconds = 3600  # 1 hour default
+        [int]$TimeoutSeconds = 3600,  # 1 hour default
+        [int]$Ram
     )
 
     if (-not (Test-Path $DatabaseFolder)) {
@@ -835,6 +954,10 @@ function Invoke-CodeQLQuery {
     $escapedSarif = $SarifFile.Replace('"', '""')
 
     $arguments = "database analyze `"$escapedDatabase`" `"$escapedQuery`" --no-sarif-add-file-contents --no-sarif-add-snippets --max-paths=1 --format=sarif-latest --output=`"$escapedSarif`""
+
+     if ($null -ne $Ram) {
+        $arguments += " --ram $Ram"
+    }
 
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processInfo.FileName = $CodeQLCliPath
