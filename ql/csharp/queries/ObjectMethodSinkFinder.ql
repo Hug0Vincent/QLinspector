@@ -26,7 +26,7 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
   }
 
   predicate isSink(DataFlow::Node sink) {
-    sink instanceof ObjectMethodSink
+    sink instanceof Sink
   }
 
   predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
@@ -46,12 +46,24 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
 
 class ObjectMethodSink extends Sink {
     ObjectMethodSink(){
-        exists(OverridableCallable baseMethod, SerializableType t, MethodCall mc |
+        exists(Method baseMethod, MethodCall mc |
             baseMethod.getDeclaringType() instanceof ObjectType and
-            baseMethod.hasName(["GetHashCode", "ToString", "Equals", "GetType"]) and
-            baseMethod.getInherited(t).getACall() = mc and
+            baseMethod.hasName(["GetHashCode", "ToString", "Equals"]) and
+            baseMethod.getACall() = mc and
             mc.getRawArgument(0) = this.asExpr() and
             isGenericType(mc.getRawArgument(0).getType())
+        )
+    }
+}
+
+class IEqualityComparerSink extends Sink {
+    IEqualityComparerSink(){
+        exists(Method m, MethodCall mc  |
+            getASuperType*(mc.getTarget().getDeclaringType()).hasFullyQualifiedName(["System.Collections", "System.Collections.Generic"], ["IEqualityComparer", "IEqualityComparer<T>"]) and
+            m.hasName(["GetHashCode", "Equals"]) and
+            m.getACall() = mc and
+            mc.getAnArgument() = this.asExpr() and
+            isGenericType(this.asExpr().getType())
         )
     }
 }

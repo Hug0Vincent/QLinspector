@@ -635,7 +635,6 @@ function Analyze-AllAssemblies {
     
         if($skip){
             Write-Host "[+] Analysis already done for $DllName, skipping."
-            return
         }else{
             Write-Host "[*] Analyzing assembly: $dllName"
             Analyze-DllWithCodeQL -AssemblyName $dllName -JsonPath $JsonPath -Delete -Queries $Queries -Ram $Ram -TimeoutSeconds $TimeoutSeconds
