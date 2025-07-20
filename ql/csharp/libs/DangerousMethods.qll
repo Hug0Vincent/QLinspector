@@ -262,6 +262,42 @@ private class PSAutomationSink extends Sink {
 }
 
 /**
+ * Stolen from the Veeam blacklist.
+ * Probably found by CODE WHITE GmbH.
+ * 
+ * It triggers NTLM auth.
+ */
+private class ActivationContextSink extends Sink {
+  ActivationContextSink(){
+    exists(Callable m, Call c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System", "ActivationContext") and
+
+      this.getExpr() = c.getArgumentForName("manifestPaths")
+    )
+  }
+}
+
+/**
+ * URLDNS like gadgets
+ * 
+ * Internally calls System.IO.LongPathHelper.TryExpandShortFileName
+ */
+private class ShortNameSink extends Sink {
+  ShortNameSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System.IO", "Path") and
+      m.hasName("GetFullPath") and
+      m.isStatic() and
+
+      // Path.GetFullPath(string path)
+      this.getExpr() = c.getArgument(0)
+    )
+  }
+}
+
+/**
  * Sinks stolen from other built-in queries.
  */
 class ExternalDangerousSink extends Sink {
