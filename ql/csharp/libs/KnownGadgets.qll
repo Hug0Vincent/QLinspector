@@ -42,6 +42,12 @@ class DataSetType extends KnownDangerousType {
   }
 }
 
+class DataTableType extends KnownDangerousType {
+  DataTableType() {
+    this.hasFullyQualifiedName("System.Data", "DataTable")
+  }
+}
+
 class PSObjectType extends KnownDangerousType {
   PSObjectType() {
     this.hasFullyQualifiedName("System.Management.Automation", "PSObject")
@@ -99,5 +105,11 @@ class ToolboxItemContainerType extends KnownDangerousType {
 class TextFormattingRunPropertiesType extends KnownDangerousType {
   TextFormattingRunPropertiesType() {
     this.hasFullyQualifiedName("System.Windows.Media.TextFormatting", "TextFormattingRunProperties")
+  }
+}
+
+class ObjRefType extends KnownDangerousType {
+  ObjRefType() {
+    this.hasFullyQualifiedName("System.Runtime.Remoting", "ObjRef")
   }
 }
