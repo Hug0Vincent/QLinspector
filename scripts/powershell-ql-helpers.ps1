@@ -952,7 +952,7 @@ function Invoke-CodeQLQuery {
     $escapedQuery = $QueryPath.Replace('"', '""')
     $escapedSarif = $SarifFile.Replace('"', '""')
 
-    $arguments = "database analyze `"$escapedDatabase`" `"$escapedQuery`" --no-sarif-add-file-contents --no-sarif-add-snippets --max-paths=1 --format=sarif-latest --output=`"$escapedSarif`""
+    $arguments = "database analyze `"$escapedDatabase`" `"$escapedQuery`" --rerun --no-sarif-add-file-contents --no-sarif-add-snippets --max-paths=1 --format=sarif-latest --output=`"$escapedSarif`""
 
      if ($null -ne $Ram) {
         $arguments += " --ram $Ram"
