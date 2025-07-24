@@ -16,11 +16,8 @@ class JsonSerializableType extends SerializableType {
    * Json.NET deserialization callbacks, like methods marked with [OnDeserializing]/[OnDeserialized] or constructors.
    */
   override Callable getADeserializationCallback() {
-    exists(Callable c | 
-      c instanceof JsonSerilizationCallBack and 
-      this.hasCallable(c) and
-      c = result
-    )
+    result instanceof JsonSerilizationCallBack and 
+    result.getDeclaringType() = this
   }
 
   /**
