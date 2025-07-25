@@ -96,7 +96,10 @@ class JsonSettersSerilizationCallBack extends JsonSerilizationCallBack, Setter {
           (
             this.isPublic() or
             p.getAnAttribute().getType().hasName("JsonPropertyAttribute")
-          )
+          ) 
+
+          // JSON.net don't call static setters
+          and not this.isStatic()
       )
     }
 }
