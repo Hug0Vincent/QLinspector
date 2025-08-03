@@ -20,7 +20,9 @@ class SerializationInfoPotentialSink extends MethodCall {
       arg.(StringLiteral).getValue().toLowerCase().matches(
         [
           "%path%", "%dir%", "%file%", "%url%", "%uri%", "%drive%",
-          "%src%", "%dst%", "%resource%", "%xml%", "%xaml%"
+          "%src%", "%dst%", "%resource%", "%xml%", "%xaml%","%64%",
+          "%zip%", "%compressed%", "%code%", "%coding%", "%serial%",
+          "%binary%", "%stream%", "%memory%", "%share%", "%conf%"
         ])
     )
   }
