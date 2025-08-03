@@ -23,7 +23,7 @@ class ManagementObjectSink extends ManagementSink {
 
 class ManagementObjectSearcherSink extends ManagementSink {
     ManagementObjectSearcherSink(){
-        this.getDeclaringType().hasFullyQualifiedName("System.Management", "ManagementObjectSearcher") and
+        getASuperType*(this.getDeclaringType()).hasFullyQualifiedName("System.Management", "ManagementObjectSearcher") and
         this instanceof Constructor
     }
 
@@ -48,7 +48,7 @@ class ObjectQuerySink extends ManagementSink {
 
 class ManagementScopeSink extends ManagementSink {
     ManagementScopeSink(){
-        this.getDeclaringType().hasFullyQualifiedName("System.Management", "ManagementScope") and
+        getASuperType*(this.getDeclaringType()).hasFullyQualifiedName("System.Management", "ManagementScope") and
         this instanceof Constructor
     }
 

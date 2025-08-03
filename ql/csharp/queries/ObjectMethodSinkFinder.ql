@@ -59,7 +59,7 @@ class ObjectMethodSink extends Sink {
 class IEqualityComparerSink extends Sink {
     IEqualityComparerSink(){
         exists(Method m, MethodCall mc  |
-            getASuperType*(mc.getTarget().getDeclaringType()).hasFullyQualifiedName(["System.Collections", "System.Collections.Generic"], ["IEqualityComparer", "IEqualityComparer<T>"]) and
+            getASuperType*(mc.getARuntimeTarget().getDeclaringType()).hasFullyQualifiedName(["System.Collections", "System.Collections.Generic"], ["IEqualityComparer", "IEqualityComparer<T>"]) and
             m.hasName(["GetHashCode", "Equals"]) and
             m.getACall() = mc and
             mc.getAnArgument() = this.asExpr() and

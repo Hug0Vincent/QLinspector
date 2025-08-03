@@ -54,6 +54,10 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
   predicate isBarrier(DataFlow::Node node) {
     node instanceof GadgetSanitizer
   }
+
+  predicate allowImplicitRead(DataFlow::Node node, DataFlow::ContentSet c) {
+    isSink(node) and c.isElement()
+  }
 }
 
 /**
@@ -75,3 +79,4 @@ module GadgetFinder = TaintTracking::Global<GadgetFinderConfig>;
 from GadgetFinder::PathNode source, GadgetFinder::PathNode sink
 where GadgetFinder::flowPath(source, sink)
 select sink.getNode(), source, sink, "Gadget from $@", source.getNode(), getSourceLocationInfo(source.getNode())
+//select sink.getNode(), source, sink, "This node receives taint from $@.", source.getNode(), "this source"
