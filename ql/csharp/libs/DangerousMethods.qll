@@ -135,6 +135,20 @@ private class AppDomainSetupSink extends Sink {
   }
 }
 
+/**
+  * AppDomain.SetData(sink, sink)
+  */
+private class AppDomainSink extends Sink {
+  AppDomainSink() {
+    exists(MethodCall c, Method m |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System", "AppDomain") and
+      m.hasName("SetData") and
+      this.getExpr() = c.getAnArgument()
+    )
+  }
+}
+
 class DLLImport extends Method {
   DLLImport(){
     this.getAnAttribute().getType().hasName("DllImportAttribute")
@@ -213,7 +227,7 @@ private class ActivatorSink extends Sink {
 private class DangerousFileOperationSink extends Sink {
   DangerousFileOperationSink() {
     exists(MethodCall c, Method m |
-      c.getTarget() = m and
+      c.getARuntimeTarget() = m and
 
       // Select interesting classes
       getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.IO", 
@@ -292,6 +306,21 @@ private class ShortNameSink extends Sink {
       m.isStatic() and
 
       // Path.GetFullPath(string path)
+      this.getExpr() = c.getArgument(0)
+    )
+  }
+}
+
+/**
+ * DataSet
+ */
+private class DataSink extends Sink {
+  DataSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Data", ["DataSet", "DataTable"]) and
+      m.getName().matches("ReadXml%") and
+
       this.getExpr() = c.getArgument(0)
     )
   }

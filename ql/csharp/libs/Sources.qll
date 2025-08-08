@@ -42,8 +42,18 @@ class ObjectMethodSource extends Source {
     ObjectMethodSource(){
         exists(OverridableCallable baseMethod, SerializableType t |
             baseMethod.getDeclaringType() instanceof ObjectType and
-            baseMethod.hasName(["ToString"]) and
+            baseMethod.hasName(["ToString", "GetHashCode", "Equals"]) and
             this.(DataFlowPrivate::InstanceParameterNode).getCallable(_) = baseMethod.getInherited(t)
+        )
+    }
+}
+
+class TypeConverterSource extends Source {
+    TypeConverterSource(){
+        exists(OverridableCallable baseMethod, SerializableType t |
+            baseMethod.getDeclaringType().hasFullyQualifiedName("System.ComponentModel", "TypeConverter") and
+            baseMethod.hasName("ConvertFrom") and
+            this.asParameter() = baseMethod.getInherited(t).getParameter(2)
         )
     }
 }
