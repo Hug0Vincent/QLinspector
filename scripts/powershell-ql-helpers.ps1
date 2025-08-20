@@ -162,21 +162,35 @@ function Export-DotNetDlls {
 function Decompile-DllWithDnSpyEx {
     <#
     .SYNOPSIS
-    Decompiles a .NET DLL using dnSpy Console and saves the source code.
+        Decompiles a .NET DLL using dnSpy Console and saves the source code.
 
     .DESCRIPTION
-    Uses dnSpy.Console.exe to decompile a .NET DLL and generate a Visual Studio solution in the output folder.
+        Uses dnSpy.Console.exe to decompile a .NET DLL and generate a Visual Studio solution in the output folder.
+        If a JSON dependency file exists, it will decompile all referenced DLLs recursively.
 
     .PARAMETER DllPath
-    Path to the .NET DLL file to decompile.
+        Path to the .NET DLL file to decompile.
 
-    .EXAMPLE
-    Decompile-DllWithDnSpyEx -DllPath "C:\Projects\MyLibrary.dll"
+    .PARAMETER OutputFolder
+        Optional path to the folder where the solution will be generated.
+
+    .PARAMETER JsonDependencies
+        Optional path to the JSON file containing dependency info.
+
+    .PARAMETER MaxDepth
+        Maximum recursion depth for dependency decompilation (default: 5).
     #>
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [string]$DllPath
+        [string]$DllPath,
+
+        [string]$OutputFolder,
+
+        [string]$JsonDependencies,
+
+        [int]$MaxDepth = 5
     )
 
     if (-not (Test-Path $DllPath)) {
@@ -189,13 +203,27 @@ function Decompile-DllWithDnSpyEx {
     }
 
     $dllName = [System.IO.Path]::GetFileNameWithoutExtension($DllPath)
-    $outputFolder = Join-Path -Path $DnSpyOutputFolder -ChildPath $dllName
+
+    if (-not $OutputFolder) {
+        $outputFolder = Join-Path -Path $DnSpyOutputFolder -ChildPath $dllName
+    }
 
     if (-not (Test-Path $outputFolder)) {
         New-Item -ItemType Directory -Path $outputFolder -Force | Out-Null
     }
 
-    & $DnSpyExCliPath  "$DllPath" -o "$outputFolder" --sln-name "$dllName.sln"
+    $dlls = @()
+    if ($JsonDependencies -and (Test-Path $JsonDependencies)) {
+        Write-Host "[*] JSON dependency file found: $JsonDependencies"
+
+        # Call your function that recursively extracts the DLL paths from JSON
+        $dlls = Get-AssemblyReferencesFromJson -JsonFilePath $JsonDependencies -AssemblyName $dllName -MaxDepth $MaxDepth
+    }
+
+    $dlls += $DllPath
+    $dlls = $dlls | Sort-Object -Unique
+
+    & $DnSpyExCliPath  $dlls -o "$outputFolder" --sln-name "$dllName.sln"
 
     if ($LASTEXITCODE -eq 0) {
         Write-Host "[+] Solution created at: $outputFolder"
@@ -203,6 +231,74 @@ function Decompile-DllWithDnSpyEx {
         Write-Error "[x] Failed to create solution."
     }
 }
+
+function Get-AssemblyReferencesFromJson {
+    <#
+    .SYNOPSIS
+    Recursively retrieves assembly reference file paths from a JSON dependency file.
+
+    .DESCRIPTION
+    Reads a JSON file describing assemblies and their references. 
+    Starting from a specified assembly name, recursively collects all referenced DLL paths.
+    You can limit recursion depth with -MaxDepth.
+
+    .PARAMETER JsonFilePath
+    Path to the JSON file containing assembly dependencies.
+
+    .PARAMETER AssemblyName
+    The root assembly name to start resolving references from.
+
+    .PARAMETER MaxDepth
+    Maximum recursion depth. Defaults to 3.
+
+    .EXAMPLE
+    Get-AssemblyReferencesFromJson -JsonFilePath "assemblies.json" -AssemblyName "System.IdentityModel" -MaxDepth 5
+    #>
+
+    param(
+        [Parameter(Mandatory)]
+        [string]$JsonFilePath,
+
+        [Parameter(Mandatory)]
+        [string]$AssemblyName,
+
+        [int]$MaxDepth = 3
+    )
+
+    # Load JSON into objects
+    $assemblies = Get-Content $JsonFilePath -Raw | ConvertFrom-Json
+
+    $visited = @{}  # To avoid cycles
+
+    function RecurseReferences($assembly, $remainingDepth) {
+        if ($null -eq $assembly -or $visited.ContainsKey($assembly.FilePath) -or $remainingDepth -le 0) {
+            return @()
+        }
+
+        $visited[$assembly.FilePath] = $true
+        $paths = @($assembly.FilePath)
+
+        foreach ($ref in $assembly.References) {
+            $paths += RecurseReferences $ref ($remainingDepth - 1)
+        }
+
+        return $paths
+    }
+
+    # Find root assembly by name
+    $root = $assemblies | Where-Object { $_.AssemblyName -eq $AssemblyName }
+    if ($null -eq $root) {
+        Write-Warning "Assembly '$AssemblyName' not found in $JsonFilePath"
+        return @()
+    }
+
+    # Flatten, unique, and sorted list
+    $allPaths = RecurseReferences $root $MaxDepth
+    return $allPaths | Sort-Object -Unique
+}
+
+
+
 
 function Create-CodeQLDatabase {
     <#
@@ -464,6 +560,12 @@ function Analyze-DllWithCodeQL {
     .PARAMETER Ram
         Optional. The amount of RAM (in MB) to allocate for the CodeQL analysis.
 
+    .PARAMETER JsonDependencies
+        Optional path to the JSON file containing dependency info.
+
+    .PARAMETER MaxDepth
+        Maximum recursion depth for dependency decompilation (default: 5).
+
     .EXAMPLE
         Analyze-DllWithCodeQL -DllPath "C:\Projects\MyLibrary.dll" -Queries ".\queries\taint.ql"
 
@@ -495,7 +597,13 @@ function Analyze-DllWithCodeQL {
         [int]$TimeoutSeconds = 3600,  # 1 hour default
 
         [Parameter()]
-        [int]$Ram
+        [int]$Ram,
+
+        [Parameter()]
+        [string]$JsonDependencies,
+
+        [Parameter()]
+        [int]$MaxDepth = 5
 
     )
 
@@ -529,7 +637,7 @@ function Analyze-DllWithCodeQL {
     $DllName = ([System.Reflection.AssemblyName]::GetAssemblyName((Get-Item $DllPath).FullName)).Name
 
     Write-Host "[+] Step 1: Decompiling $DllName..."
-    Decompile-DllWithDnSpyEx -DllPath $DllPath
+    Decompile-DllWithDnSpyEx -DllPath $DllPath -JsonDependencies $JsonDependencies -MaxDepth $MaxDepth
 
     $SolutionFolder = Join-Path -Path $DnSpyOutputFolder -ChildPath $DllName
     Write-Host "[+] Step 2: Creating CodeQL database for $DllName..."
@@ -583,13 +691,22 @@ function Analyze-AllAssemblies {
     .PARAMETER Ram
         Optional. The amount of RAM (in MB) to allocate for each CodeQL database analyze run.
 
+    .PARAMETER ReRun
+        Re-run queries even if analysis was already done.
+
+    .PARAMETER JsonDependencies
+        Optional path to the JSON file containing dependency info.
+
+    .PARAMETER MaxDepth
+        Maximum recursion depth for dependency decompilation (default: 5).
+
     .EXAMPLE
-        Analyze-AllAssemblies -JsonPath ".\assemblies.json" -Queries ".\queries\myquery.ql"
+        Analyze-AllAssemblies -JsonPath ".\assemblies.json" -Queries QLinspector.ql
 
         Analyzes all unprocessed DLLs in `assemblies.json` using the specified CodeQL query.
 
     .EXAMPLE
-        Analyze-AllAssemblies -JsonPath ".\assemblies.json" -Queries "qlpack1", "qlpack2" -Ram 8192 -TimeoutSeconds 1800
+        Analyze-AllAssemblies -JsonPath ".\assemblies.json" -Queries QLinspector.ql,ObjectMethodSinkFinder.ql -Ram 8192 -TimeoutSeconds 1800 -ReRun
 
         Analyzes each DLL using multiple QL packs, with a 30-minute timeout and 8 GB RAM limit.
     #>
@@ -604,7 +721,16 @@ function Analyze-AllAssemblies {
         [int]$TimeoutSeconds = 3600,  # 1 hour default
 
         [Parameter()]
-        [int]$Ram
+        [int]$Ram,
+
+        [Parameter()]
+        [switch]$ReRun,
+
+        [Parameter()]
+        [string]$JsonDependencies,
+
+        [Parameter()]
+        [int]$MaxDepth = 5
     )
 
     if (-not (Test-Path $JsonPath)) {
@@ -633,11 +759,11 @@ function Analyze-AllAssemblies {
             }
         }
     
-        if($skip){
+        if($skip -and !$ReRun){
             Write-Host "[+] Analysis already done for $DllName, skipping."
         }else{
             Write-Host "[*] Analyzing assembly: $dllName"
-            Analyze-DllWithCodeQL -AssemblyName $dllName -JsonPath $JsonPath -Delete -Queries $Queries -Ram $Ram -TimeoutSeconds $TimeoutSeconds
+            Analyze-DllWithCodeQL -AssemblyName $dllName -JsonPath $JsonPath -Delete -Queries $Queries -Ram $Ram -TimeoutSeconds $TimeoutSeconds -JsonDependencies $JsonDependencies -MaxDepth $MaxDepth
         }
     }
 }
@@ -759,6 +885,12 @@ function Update-QueryResults {
             $assemblyRef.QL.$QueryName.NumberOfResults = $resultCount
             $assemblyRef.QL.$QueryName.Top20ShortestPaths = @($shortest) # weird behavior with return value
 
+            if (($assemblyRef.QL.$QueryName.NumberOfResults -ne 0) -and ($assemblyRef.QL.$QueryName.NumberOfResults -ne $resultCount)){
+                $assemblyRef.QL.$QueryName.Changed = $true
+            }else{
+                $assemblyRef.QL.$QueryName.Changed = $false
+            }
+
             $JsonContent.assemblies[$index] = $assemblyRef
         }
     }
@@ -843,15 +975,16 @@ function Run-CodeQLQuery-And-Update {
                 Top20ShortestPaths = @()
                 ResultStatus       = ''
                 NumberOfResults    = 0
+                Changed            = $false
             }
             $JsonContent.assemblies[$index].QL | Add-Member -MemberType NoteProperty -Name $QueryName -Value $queryResultObject -Force
         }
 
         # Check if results already exist
-        if ($JsonContent.assemblies[$index].QL.$QueryName.ResultStatus) {
-            Write-Host "[*] Results already exist for '$QueryName' on assembly '$AssemblyName'. Skipping."
-            return
-        }
+        #if ($JsonContent.assemblies[$index].QL.$QueryName.ResultStatus) {
+        #    Write-Host "[*] Results already exist for '$QueryName' on assembly '$AssemblyName'. Skipping."
+        #    return
+        #}
     }
 
     if (-not $skipQuery) {

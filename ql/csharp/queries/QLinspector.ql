@@ -56,7 +56,8 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
   }
 
   predicate allowImplicitRead(DataFlow::Node node, DataFlow::ContentSet c) {
-    isSink(node) and c.isElement()
+    //isSink(node) and 
+    c.isElement()
   }
 }
 
