@@ -13,6 +13,7 @@ private import semmle.code.csharp.security.dataflow.flowsinks.FlowSinks
 import GadgetFinder::PathGraph
 import libs.Sources as Sources
 import libs.GadgetTaintHelpers
+import libs.NewtonsoftJson
 
 /**
  * A data flow sink for gadget.
@@ -52,6 +53,13 @@ class ObjectMethodSink extends Sink {
             baseMethod.getACall() = mc and
             mc.getRawArgument(0) = this.asExpr() and
             isGenericType(mc.getRawArgument(0).getType())
+        ) or 
+        exists(MethodCall mc |
+          mc.getTarget().isStatic()  and
+          mc.getTarget().getDeclaringType() instanceof ObjectType  and
+          mc.getTarget().hasName("Equals") and
+          mc.getArgument(1) = this.asExpr() and
+          isGenericType(mc.getArgument(1).getType())
         )
     }
 }
