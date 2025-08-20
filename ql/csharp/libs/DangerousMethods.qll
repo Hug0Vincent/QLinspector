@@ -312,7 +312,7 @@ private class ShortNameSink extends Sink {
 }
 
 /**
- * DataSet
+ * DataSet/DataTable
  */
 private class DataSink extends Sink {
   DataSink(){
@@ -322,6 +322,82 @@ private class DataSink extends Sink {
       m.getName().matches("ReadXml%") and
 
       this.getExpr() = c.getArgument(0)
+    )
+  }
+}
+
+private class DirectoryEntrySink extends Sink {
+  DirectoryEntrySink(){
+    exists(Constructor m, Call c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System.DirectoryServices", "DirectoryEntry") and
+
+      this.getExpr() = c.getArgumentForName("path")
+    )
+  }
+}
+
+/**
+ * XmlDocument
+ * No XXE by default but idk it might give some new vectors.
+ */
+private class XmlDocumentSink extends Sink {
+  XmlDocumentSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Xml", "XmlDocument") and
+      m.getName().matches("Load%") and
+
+      this.getExpr() = c.getArgument(0)
+    )
+  }
+}
+
+/**
+ * WorkflowMarkupSerializer / WorkflowMarkupSerializationHelpers
+ * 
+ * XOML deserialization
+ */
+private class WorkflowMarkupSerializerSink extends Sink {
+  WorkflowMarkupSerializerSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Workflow.ComponentModel.Serialization", ["WorkflowMarkupSerializer", "WorkflowMarkupSerializationHelpers"]) and
+      m.hasName(["Deserialize", "LoadXomlDocument"]) and
+
+      this.getExpr() = c.getArgumentForName(["reader", "textReader"])
+    )
+  }
+}
+
+/**
+ * WorkflowTheme
+ * 
+ * Call WorkflowMarkupSerializer.Deserialize
+ */
+private class WorkflowThemeSink extends Sink {
+  WorkflowThemeSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Workflow.ComponentModel.Design", "WorkflowTheme") and
+      m.hasName("Load") and
+
+      this.getExpr() = c.getArgumentForName("themeFilePath")
+    )
+  }
+}
+
+/**
+ * WorkflowDesignerLoader
+ */
+private class WorkflowDesignerLoaderSink extends Sink {
+  WorkflowDesignerLoaderSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Workflow.ComponentModel.Design", "WorkflowDesignerLoader") and
+      m.hasName("GetFileReader") and
+
+      this.getExpr() = c.getArgumentForName("filePath")
     )
   }
 }
