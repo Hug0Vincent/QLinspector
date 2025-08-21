@@ -2,6 +2,7 @@ import csharp
 import GadgetTaintHelpers
 import RequestForgery as RequestForgery 
 import SystemManagement
+import ComponentModel
 private import semmle.code.csharp.security.dataflow.flowsinks.FlowSinks
 import semmle.code.csharp.security.dataflow.UnsafeDeserializationQuery as UnsafeDeserialization
 import semmle.code.csharp.security.dataflow.CodeInjectionQuery as CodeInjection 
@@ -136,15 +137,16 @@ private class AppDomainSetupSink extends Sink {
 }
 
 /**
-  * AppDomain.SetData(sink, sink)
+  * AppDomain
   */
 private class AppDomainSink extends Sink {
   AppDomainSink() {
     exists(MethodCall c, Method m |
       c.getTarget() = m and
       m.getDeclaringType().hasFullyQualifiedName("System", "AppDomain") and
-      m.hasName("SetData") and
-      this.getExpr() = c.getAnArgument()
+      m.hasName(["SetData", "Deserialize"]) and
+
+      this.getExpr() = c.getArgumentForName(["name", "data", "blob"])
     )
   }
 }
@@ -354,53 +356,311 @@ private class XmlDocumentSink extends Sink {
 }
 
 /**
- * WorkflowMarkupSerializer / WorkflowMarkupSerializationHelpers
- * 
- * XOML deserialization
+ * SessionSecurityTokenHandler
  */
-private class WorkflowMarkupSerializerSink extends Sink {
-  WorkflowMarkupSerializerSink(){
+private class SessionSecurityTokenHandlerSink extends Sink {
+  SessionSecurityTokenHandlerSink(){
     exists(Method m, MethodCall c |
       c.getTarget() = m and
-      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Workflow.ComponentModel.Serialization", ["WorkflowMarkupSerializer", "WorkflowMarkupSerializationHelpers"]) and
-      m.hasName(["Deserialize", "LoadXomlDocument"]) and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.IdentityModel.Tokens", "SessionSecurityTokenHandler") and
+      m.hasName("ReadToken") and
 
-      this.getExpr() = c.getArgumentForName(["reader", "textReader"])
+      this.getExpr() = c.getArgument(0)
     )
   }
 }
 
 /**
- * WorkflowTheme
- * 
- * Call WorkflowMarkupSerializer.Deserialize
+ * WorkflowDesigner
  */
-private class WorkflowThemeSink extends Sink {
-  WorkflowThemeSink(){
+private class WorkflowDesignerSink extends Sink {
+  WorkflowDesignerSink(){
     exists(Method m, MethodCall c |
       c.getTarget() = m and
-      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Workflow.ComponentModel.Design", "WorkflowTheme") and
-      m.hasName("Load") and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Activities.Presentation", "WorkflowDesigner") and
+      m.hasName("set_PropertyInspectorFontAndColorData") and
 
-      this.getExpr() = c.getArgumentForName("themeFilePath")
+      this.getExpr() = c.getArgument(0)
+    )
+  }
+}
+
+private class XamlImageInfoSink extends Sink {
+  XamlImageInfoSink(){
+    exists(Constructor m, Call c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System.Activities.Presentation.Internal", "ManifestImages+XamlImageInfo") and
+
+      this.getExpr() = c.getArgumentForName("stream")
     )
   }
 }
 
 /**
- * WorkflowDesignerLoader
+ * Adding sinks from this paper
+ * https://soroush.me/downloadable/use_of_deserialisation_in_dotnet_framework_methods_and_classes.pdf
+ * 
+ * While CodeQL should be able to find them if the DLL is analyzed, it can be useful for future research.
  */
-private class WorkflowDesignerLoaderSink extends Sink {
-  WorkflowDesignerLoaderSink(){
-    exists(Method m, MethodCall c |
-      c.getTarget() = m and
-      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Workflow.ComponentModel.Design", "WorkflowDesignerLoader") and
-      m.hasName("GetFileReader") and
 
-      this.getExpr() = c.getArgumentForName("filePath")
+private class ResourceReaderSink extends Sink {
+  ResourceReaderSink(){
+    exists(Constructor m, Call c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System.Resources", "ResourceReader") and
+
+      this.getExpr() = c.getArgument(0)
     )
   }
 }
+
+private class ResourceManager Sink extends Sink {
+  ResourceManager Sink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System.Resources", "ResourceManager") and
+      m.hasName(["GetObject"]) and
+
+      this.getExpr() = c.getArgument(0)
+    )
+  }
+}
+
+private class SettingsPropertyValueSink extends Sink {
+  SettingsPropertyValueSink(){
+    exists(Constructor m, Call c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System.Configuration", "SettingsPropertyValue") and
+
+      this.getExpr() = c.getArgument(0)
+    )
+  }
+}
+
+private class TypedDataSetGeneratorSink extends Sink {
+  TypedDataSetGeneratorSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Data.Design", "TypedDataSetGenerator") and
+      m.hasName(["Generate", "GetProviderName"]) and
+
+      this.getExpr() = c.getArgumentForName(["inputFileContent"])
+    )
+  }
+}
+
+private class MethodSignatureGeneratorSink extends Sink {
+  MethodSignatureGeneratorSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Data.Design", "MethodSignatureGenerator") and
+      m.hasName("SetMethodSourceContent") and
+
+      this.getExpr() = c.getArgumentForName("methodSourceContent")
+    )
+  }
+}
+
+private class TypedDataSetSchemaImporterExtensionSink extends Sink {
+  TypedDataSetSchemaImporterExtensionSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Data.Design", "TypedDataSetSchemaImporterExtension") and
+      m.hasName("ImportSchemaType") and
+
+      this.getExpr() = c.getArgumentForName("schemas")
+    )
+  }
+}
+
+private class DbConvertSink extends Sink {
+  DbConvertSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Data.Linq", "DBConvert") and
+      m.hasName("ChangeType") and
+
+      this.getExpr() = c.getArgumentForName("value")
+    )
+  }
+}
+
+private class ApplicationTrustSink extends Sink {
+  ApplicationTrustSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Security.Policy", "ApplicationTrust") and
+      m.hasName("ObjectFromXml") and
+
+      this.getExpr() = c.getArgumentForName("elObject")
+    )
+  }
+}
+
+private class OutputCacheSink extends Sink {
+  OutputCacheSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Web.Caching", "OutputCache") and
+      m.hasName("Deserialize") and
+
+      this.getExpr() = c.getArgumentForName("stream")
+    )
+  }
+}
+
+private class AltSerializationSink extends Sink {
+  AltSerializationSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System.Web.Util", "AltSerialization") and
+      m.hasName("ReadValueFromStream") and
+
+      this.getExpr() = c.getArgumentForName("reader")
+    )
+  }
+}
+
+/**
+ * SessionStateItemCollection sink is in DeserializeItem, but the stream is set in Deserialize.
+ * 
+ * need to check this one.
+ */
+private class AltSerialization2Sink extends Sink {
+  AltSerialization2Sink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName(["System.Web", "System.Web.SessionState"], ["HttpStaticObjectsCollection", "SessionStateItemCollection"]) and
+      m.hasName("Deserialize") and
+
+      this.getExpr() = c.getArgumentForName("reader")
+    )
+  }
+}
+
+private class DataObjectSink extends Sink {
+  DataObjectSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName(["System.Windows.Forms", "System.Windows"], "DataObject") and
+      m.hasName(["ReadObjectFromHandleDeserializer", "ReadObjectFromHandle", "SetData"]) and
+
+      this.getExpr() = c.getArgumentForName(["stream", "handle", "data"])
+    )
+  }
+}
+
+private class SecurityExceptionSink extends Sink {
+  SecurityExceptionSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      m.getDeclaringType().hasFullyQualifiedName("System.Security", "SecurityException") and
+      m.hasName("ByteArrayToObject") and
+
+      this.getExpr() = c.getArgumentForName("array")
+    )
+  }
+}
+
+private class RolePrincipalSink extends Sink {
+  RolePrincipalSink(){
+    exists(Callable m, Call c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Web.Security", "RolePrincipal") and
+      m.hasName(["InitFromEncryptedTicket", "RolePrincipal"]) and
+
+      this.getExpr() = c.getArgumentForName("encryptedTicket")
+    )
+  }
+}
+
+private class IsolatedStorageSink extends Sink {
+  IsolatedStorageSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.IO.IsolatedStorage", "IsolatedStorage") and
+      m.hasName("InitStore") and
+      m.getRawParameter(3).getDeclaringType().hasName("Stream") and
+
+      this.getExpr() = c.getArgumentForName(["domain","app", "assem"])
+    )
+  }
+}
+
+private class MsmqDecodeHelperSink extends Sink {
+  MsmqDecodeHelperSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.ServiceModel.Channels", "MsmqDecodeHelper") and
+      m.hasName("DeserializeForIntegration") and
+
+      this.getExpr() = c.getArgumentForName("bodyStream")
+    )
+  }
+}
+
+private class TransactionsSink extends Sink {
+  TransactionsSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName(["System.Transactions.Oletx", "System.Transactions"], ["OletxResourceManager", "TransactionManager"]) and
+      m.hasName("Reenlist") and
+
+      this.getExpr() = c.getArgumentForName(["prepareInfo", "recoveryInformation"])
+    )
+  }
+}
+
+// SqlTrackingWorkflowInstance skipped, it require SQL injection.
+
+private class ApplicationProxyInternalSink extends Sink {
+  ApplicationProxyInternalSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("MS.Internal.AppModel", "ApplicationProxyInternal") and
+      m.hasName("DeserializeJournaledObject") and
+
+      this.getExpr() = c.getArgumentForName("inputStream")
+    )
+  }
+}
+
+private class DataStreamsSink extends Sink {
+  DataStreamsSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("MS.Internal.AppModel", "DataStreams") and
+      m.hasName("LoadSubStreams") and
+
+      this.getExpr() = c.getArgumentForName("subStreams")
+    )
+  }
+}
+
+private class ControlSink extends Sink {
+  ControlSink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("System.Windows.Forms", "Control") and
+      m.hasName(["Load", "Read"]) and
+
+      this.getExpr() = c.getArgumentForName(["pPropBag", "istream", "stream"])
+    )
+  }
+}
+
+private class Sink extends Sink {
+  Sink(){
+    exists(Method m, MethodCall c |
+      c.getTarget() = m and
+      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("", "") and
+      m.hasName([""]) and
+
+      this.getExpr() = c.getArgumentForName([""])
+    )
+  }
+}
+
 
 /**
  * Sinks stolen from other built-in queries.
