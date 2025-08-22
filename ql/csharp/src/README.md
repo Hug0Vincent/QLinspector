@@ -75,7 +75,7 @@ The main CodeQL query that can be used to find gadget chains.
 
 Here is an example with the `TextFormattingRunProperties` gadget chain:
 
-![TextFormattingRunProperties](../../img/TextFormattingRunProperties.png)
+![TextFormattingRunProperties](../../../img/TextFormattingRunProperties.png)
 
 ## `DangerousTypeFinder.ql`
 
@@ -83,7 +83,7 @@ If a type is serializable and extends a dangerous one, it becomes a new gadget. 
 
 Here is an example with the `FormsIdentity` gadget:
 
-![FormsIdentity](../../img/FormsIdentity.png)
+![FormsIdentity](../../../img/FormsIdentity.png)
 
 
 # Acknowledgements
