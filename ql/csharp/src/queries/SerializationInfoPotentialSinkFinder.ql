@@ -22,7 +22,8 @@ class SerializationInfoPotentialSink extends MethodCall {
           "%path%", "%dir%", "%file%", "%url%", "%uri%", "%drive%",
           "%src%", "%dst%", "%resource%", "%xml%", "%xaml%","%64%",
           "%zip%", "%compressed%", "%code%", "%coding%", "%serial%",
-          "%binary%", "%stream%", "%memory%", "%share%", "%conf%"
+          "%binary%", "%stream%", "%memory%", "%share%", "%conf%",
+          "%assembly%"
         ])
     )
   }
