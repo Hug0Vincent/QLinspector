@@ -328,6 +328,10 @@ private class DataSink extends Sink {
   }
 }
 
+/**
+ * we can pass many path types in the constructor that might result in 
+ * implicit authentication if entries are fetched.
+ */
 private class DirectoryEntrySink extends Sink {
   DirectoryEntrySink(){
     exists(Constructor m, Call c |
@@ -414,8 +418,8 @@ private class ResourceReaderSink extends Sink {
   }
 }
 
-private class ResourceManager Sink extends Sink {
-  ResourceManager Sink(){
+private class ResourceManagerSink extends Sink {
+  ResourceManagerSink(){
     exists(Method m, MethodCall c |
       c.getTarget() = m and
       m.getDeclaringType().hasFullyQualifiedName("System.Resources", "ResourceManager") and
@@ -649,17 +653,6 @@ private class ControlSink extends Sink {
   }
 }
 
-private class Sink extends Sink {
-  Sink(){
-    exists(Method m, MethodCall c |
-      c.getTarget() = m and
-      getASuperType*(m.getDeclaringType()).hasFullyQualifiedName("", "") and
-      m.hasName([""]) and
-
-      this.getExpr() = c.getArgumentForName([""])
-    )
-  }
-}
 
 
 /**

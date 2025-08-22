@@ -51,7 +51,7 @@ function Set-CodeQLGlobalPaths {
         [string]$DnSpyOut        = "C:\Users\user\Documents\Pentest\RD\Gadgets\Sources\",
         [string]$CodeQLPath      = "C:\Users\user\Documents\Pentest\Tools\codeql-bundle\codeql\codeql.exe",
         [string]$CodeQLDbOut     = "C:\Users\user\Documents\Pentest\RD\Gadgets\Files\Codeql\Databases",
-        [string]$QueryPath       = "F:\tools\QLinspector\ql\csharp\queries\",
+        [string]$QueryPath       = "F:\tools\QLinspector\ql\csharp\src\queries\",
         [string]$SarifOut        = "C:\Users\user\Documents\Pentest\RD\Gadgets\Files\Codeql\Sarif",
         [string]$JQPath          = "C:\Users\user\Documents\Pentest\Tools\jq-windows-amd64.exe"
     )
@@ -882,14 +882,15 @@ function Update-QueryResults {
         if ($null -ne $index) {
 
             $assemblyRef = $JsonContent.assemblies[$index]
-            $assemblyRef.QL.$QueryName.NumberOfResults = $resultCount
-            $assemblyRef.QL.$QueryName.Top20ShortestPaths = @($shortest) # weird behavior with return value
 
-            if (($assemblyRef.QL.$QueryName.NumberOfResults -ne 0) -and ($assemblyRef.QL.$QueryName.NumberOfResults -ne $resultCount)){
+            if ($assemblyRef.QL.$QueryName.NumberOfResults -ne $resultCount){
                 $assemblyRef.QL.$QueryName.Changed = $true
             }else{
                 $assemblyRef.QL.$QueryName.Changed = $false
             }
+
+            $assemblyRef.QL.$QueryName.NumberOfResults = $resultCount
+            $assemblyRef.QL.$QueryName.Top20ShortestPaths = @($shortest) # weird behavior with return value
 
             $JsonContent.assemblies[$index] = $assemblyRef
         }

@@ -50,6 +50,7 @@ class ObjectMethodSink extends Sink {
         exists(Method baseMethod, MethodCall mc |
             baseMethod.getDeclaringType() instanceof ObjectType and
             baseMethod.hasName(["GetHashCode", "ToString", "Equals"]) and
+            //baseMethod.hasName("Equals") and
             baseMethod.getACall() = mc and
             mc.getRawArgument(0) = this.asExpr() and
             isGenericType(mc.getRawArgument(0).getType())
@@ -75,6 +76,18 @@ class IEqualityComparerSink extends Sink {
         )
     }
 }
+
+/*
+class EqualOperatorSource extends Sources::Source {
+    EqualOperatorSource(){
+        exists(Operator o |
+            o.getDeclaringType() instanceof JsonSerializableType and
+            o.hasName("==") and
+            o.getAParameter() = this.asParameter()
+        )
+    }
+}
+*/
 
 module GadgetFinder = TaintTracking::Global<GadgetFinderConfig>;
 
