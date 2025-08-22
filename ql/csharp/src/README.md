@@ -90,5 +90,6 @@ Here is an example with the `FormsIdentity` gadget:
 
 - [@chudyPB](https://x.com/chudypb) for his [research](https://github.com/thezdi/presentations/blob/main/2023_Hexacon/whitepaper-net-deser.pdf) at Hexacon.
 - [@pwntester](https://x.com/pwntester) for [Ysoserial.net](https://github.com/pwntester/ysoserial.net/)
+- [@irsdl](https://x.com/irsdl) for all the research on gadget and dotnet like [this one](https://soroush.me/downloadable/use_of_deserialisation_in_dotnet_framework_methods_and_classes.pdf).
 - All the finders of gadgets
 - The peoples at CodeQL, always helping in the [discussion tab](https://github.com/github/codeql/discussions).
