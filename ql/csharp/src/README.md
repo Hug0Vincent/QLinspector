@@ -85,6 +85,13 @@ Here is an example with the `FormsIdentity` gadget:
 
 ![FormsIdentity](../../../img/FormsIdentity.png)
 
+## `SerializationInfoPotentialSinkFinder.ql`
+
+Try to identify potential dangerous types by looking at the string used in `Get*` methods of ``SerializationInfo``.
+
+Here is an example:
+
+![ActivationContext](../../../img/SerializationInfoPotentialSinkFinder.png)
 
 # Acknowledgements
 
