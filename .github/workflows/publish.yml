@@ -26,7 +26,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PUBLISHED_VERSION=$(gh api /orgs/Hug0Vincent/packages/container/qlinspector-${{ matrix.language }}-queries/versions --jq '.[0].metadata.container.tags[0]')
+          PUBLISHED_VERSION=$(gh api /users/Hug0Vincent/packages/container/qlinspector-${{ matrix.language }}-queries/versions --jq '.[0].metadata.container.tags[0]')
           CURRENT_VERSION=$(grep version ${{ matrix.language }}/src/qlpack.yml | awk '{print $2}')
 
           echo "Published version: $PUBLISHED_VERSION"
@@ -71,7 +71,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PUBLISHED_VERSION=$(gh api /orgs/githubsecuritylab/packages/container/codeql-${{ matrix.language }}-extensions/versions --jq '.[0].metadata.container.tags[0]')
+          PUBLISHED_VERSION=$(gh api /users/githubsecuritylab/packages/container/codeql-${{ matrix.language }}-extensions/versions --jq '.[0].metadata.container.tags[0]')
           CURRENT_VERSION=$(grep version ${{ matrix.language }}/ext/qlpack.yml | awk '{print $2}')
 
           echo "Published version: $PUBLISHED_VERSION"
