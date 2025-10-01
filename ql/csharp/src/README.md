@@ -23,7 +23,7 @@
 
 ```sh
 $ git clone https://github.com/synacktiv/QLinspector.git
-$ codeql database analyze System.Web --format=sarif-latest --output=System.Web.sarif --search-path=./QLinspector/ synacktiv/qlinspector-csharp
+$ codeql database analyze System.Web --format=sarif-latest --output=System.Web.sarif --search-path=./QLinspector/ synacktiv/qlinspector-csharp-queries
 ```
 
 # Usage
@@ -32,7 +32,7 @@ $ codeql database analyze System.Web --format=sarif-latest --output=System.Web.s
 
 You can run this command it will launch `Qlinspector.ql` and `DangerousTypeFinder.ql`:
 ```sh
-$ codeql database analyze System.Web --format=sarif-latest --output=System.Web.sarif --search-path=./QLinspector/ synacktiv/qlinspector-csharp
+$ codeql database analyze System.Web --format=sarif-latest --output=System.Web.sarif --search-path=./QLinspector/ synacktiv/qlinspector-csharp-queries
 ```
 
 ### Advanced usage
