@@ -4,6 +4,6 @@ dependencies:
   codeql/csharp-all: "*"
   codeql/csharp-queries: "*"
   synacktiv/qlinspector-csharp-extensions: "*"
-  synacktiv/qlinspector-csharp: "*"
+  synacktiv/qlinspector-csharp-queries: "*"
 extractor: csharp
 tests: .
