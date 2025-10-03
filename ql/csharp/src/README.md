@@ -69,7 +69,7 @@ This step will loop over each DLLs and perform the following operations:
 
 # Queries
 
-## `QLinspector.ql`
+## `QLinspector-*.ql`
 
 The main CodeQL query that can be used to find gadget chains.
 
@@ -92,6 +92,24 @@ Try to identify potential dangerous types by looking at the string used in `Get*
 Here is an example:
 
 ![ActivationContext](../../../img/SerializationInfoPotentialSinkFinder.png)
+
+## `SinkToModel.ql`
+
+Help writing YAML models. Just modify this to generate the model:
+
+```ql
+this.getDeclaringType().hasFullyQualifiedName("", "") and
+this.hasName("") and
+p = this.getAParameter() and 
+p.hasName("")
+```
+
+Or another way:
+```
+this.getDeclaringType().hasFullyQualifiedName("", "") and
+this.hasName("") and
+p = this.getParameter(0)
+```
 
 # Acknowledgements
 
