@@ -32,6 +32,8 @@ extensions:
       - ["System.Resources", "ResourceReader", True, "ResourceReader", "(System.IO.Stream)", "", "Argument[0]", "gadget-sink", "manual"]
       - ["System.Resources", "ResourceManager", True, "GetObject", "(System.String,System.Globalization.CultureInfo)", "", "Argument[0]", "gadget-sink", "manual"]
       - ["System.Resources", "ResourceManager", True, "GetObject", "(System.String)", "", "Argument[0]", "gadget-sink", "manual"]
+      - ["System.Resources", "ResourceSet", True, "ResourceSet", "(System.String)", "", "Argument[0]", "gadget-sink", "manual"]
+      - ["System.Resources", "ResourceSet", True, "ResourceSet", "(System.IO.Stream)", "", "Argument[0]", "gadget-sink", "manual"]
       #
       - ["System.Configuration", "SettingsPropertyValue", True, "SettingsPropertyValue", "(System.Configuration.SettingsProperty)", "", "Argument[0]", "gadget-sink", "manual"]
       #
