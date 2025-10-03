@@ -217,7 +217,7 @@ function Decompile-DllWithDnSpyEx {
         Write-Host "[*] JSON dependency file found: $JsonDependencies"
 
         # Call your function that recursively extracts the DLL paths from JSON
-        $dlls = Get-AssemblyReferencesFromJson -JsonFilePath $JsonDependencies -AssemblyName $dllName -MaxDepth $MaxDepth
+        $dlls = Get-AssemblyReferencesFromJson -JsonFilePath $JsonDependencies -AssemblyPath $DllPath -MaxDepth $MaxDepth
     }
 
     $dlls += $DllPath
@@ -239,28 +239,38 @@ function Get-AssemblyReferencesFromJson {
 
     .DESCRIPTION
     Reads a JSON file describing assemblies and their references. 
-    Starting from a specified assembly name, recursively collects all referenced DLL paths.
-    You can limit recursion depth with -MaxDepth.
+    You must specify either an AssemblyName (to search by name, preferring GAC), or an AssemblyPath (to search by exact file path).
+    Recursively collects all referenced DLL paths, limited by MaxDepth.
 
     .PARAMETER JsonFilePath
     Path to the JSON file containing assembly dependencies.
 
     .PARAMETER AssemblyName
-    The root assembly name to start resolving references from.
+    The root assembly name to start resolving references from. Mutually exclusive with AssemblyPath.
+
+    .PARAMETER AssemblyPath
+    The full file path of the root assembly. Mutually exclusive with AssemblyName.
 
     .PARAMETER MaxDepth
     Maximum recursion depth. Defaults to 3.
 
     .EXAMPLE
-    Get-AssemblyReferencesFromJson -JsonFilePath "assemblies.json" -AssemblyName "System.IdentityModel" -MaxDepth 5
+    Get-AssemblyReferencesFromJson -JsonFilePath "assemblies.json" -AssemblyName "PresentationFramework" -MaxDepth 2
+
+    .EXAMPLE
+    Get-AssemblyReferencesFromJson -JsonFilePath "assemblies.json" -AssemblyPath "C:\Path\To\My.dll" -MaxDepth 2
     #>
 
+    [CmdletBinding(DefaultParameterSetName='ByName')]
     param(
-        [Parameter(Mandatory)]
-        [string]$JsonFilePath,
+        [Parameter(Mandatory, ParameterSetName='ByName')]
+        [string]$AssemblyName,
+
+        [Parameter(Mandatory, ParameterSetName='ByPath')]
+        [string]$AssemblyPath,
 
         [Parameter(Mandatory)]
-        [string]$AssemblyName,
+        [string]$JsonFilePath,
 
         [int]$MaxDepth = 3
     )
@@ -279,23 +289,46 @@ function Get-AssemblyReferencesFromJson {
         $paths = @($assembly.FilePath)
 
         foreach ($ref in $assembly.References) {
+            $paths += $ref.FilePath
             $paths += RecurseReferences $ref ($remainingDepth - 1)
         }
 
         return $paths
     }
 
-    # Find root assembly by name
-    $root = $assemblies | Where-Object { $_.AssemblyName -eq $AssemblyName }
-    if ($null -eq $root) {
-        Write-Warning "Assembly '$AssemblyName' not found in $JsonFilePath"
-        return @()
+    # Find root assembly
+    $root = $null
+
+    if ($PSCmdlet.ParameterSetName -eq 'ByPath') {
+        # Match by full FilePath
+        $root = $assemblies | Where-Object { $_.FilePath -ieq (Resolve-Path $AssemblyPath).Path } | Select-Object -First 1
+        if (-not $root) {
+            Write-Warning "Assembly at path '$AssemblyPath' not found in $JsonFilePath"
+            return @()
+        }
+    }
+    elseif ($PSCmdlet.ParameterSetName -eq 'ByName') {
+        $rootCandidates = $assemblies | Where-Object { $_.AssemblyName -eq $AssemblyName }
+
+        # Prefer GAC
+        $root = $rootCandidates | Where-Object { $_.FilePath -match '\\assembly\\GAC_' } | Select-Object -First 1
+
+        # Fallback to any match
+        if (-not $root) {
+            $root = $rootCandidates | Select-Object -First 1
+        }
+
+        if (-not $root) {
+            Write-Warning "Assembly '$AssemblyName' not found in $JsonFilePath"
+            return @()
+        }
     }
 
-    # Flatten, unique, and sorted list
+    # Recurse dependencies and return unique, sorted paths
     $allPaths = RecurseReferences $root $MaxDepth
     return $allPaths | Sort-Object -Unique
 }
+
 
 
 
@@ -311,13 +344,19 @@ function Create-CodeQLDatabase {
     .PARAMETER SolutionFolder
     Folder containing the .sln file for the project.
 
+    .PARAMETER DBName
+    Specify the CodeQL DB name. If not present it's extracted from the sln file.
+
     .EXAMPLE
     Create-CodeQLDatabase -SolutionFolder "C:\Decompiled\MyLibrary"
     #>
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [string]$SolutionFolder
+        [string]$SolutionFolder,
+
+        [Parameter()]
+        [string]$DBName
     )
 
     $slnFile = Get-ChildItem -Path $SolutionFolder -Filter *.sln | Select-Object -First 1
@@ -327,8 +366,12 @@ function Create-CodeQLDatabase {
         return
     }
 
-    $solutionName = [System.IO.Path]::GetFileNameWithoutExtension($slnFile.Name)
-    $outputFolder = Join-Path -Path $CodeQLDatabasesOutputRoot -ChildPath $solutionName
+    if($DBName){
+        $outputFolder = Join-Path -Path $CodeQLDatabasesOutputRoot -ChildPath $DBName
+    }else{
+        $solutionName = [System.IO.Path]::GetFileNameWithoutExtension($slnFile.Name)
+        $outputFolder = Join-Path -Path $CodeQLDatabasesOutputRoot -ChildPath $solutionName
+    }
 
     if (-not (Test-Path $outputFolder)) {
         New-Item -ItemType Directory -Path $outputFolder -Force | Out-Null
