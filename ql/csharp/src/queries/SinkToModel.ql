@@ -6,7 +6,7 @@
  */
 
 import csharp
-import libs.DangerousMethods as DangerousMethods
+import libs.generic.DangerousMethods as DangerousMethods
 private import semmle.code.csharp.security.dataflow.flowsinks.FlowSinks
 
 class GadgetSink extends Callable {
@@ -37,9 +37,9 @@ class GadgetSink extends Callable {
 
     string generateModel(){
         result = "- [\"" +
-        this.getDeclaringType().getNamespace() + 
+        this.getDeclaringType().getNamespace().getFullName() + 
         "\", \"" +
-        this.getDeclaringType() +
+        getTypeName(this.getDeclaringType()) +
         "\", True, \"" +
         this.getName() +
         "\", \"" +
@@ -51,7 +51,7 @@ class GadgetSink extends Callable {
     private string parameterTypeToString(int i) {
         exists(Parameter param | 
             param = this.getParameter(i) and
-            result = param.getType().getFullyQualifiedName()
+            result = getFullTypeName(param.getType())
         )
     }
 
@@ -59,6 +59,29 @@ class GadgetSink extends Callable {
     override string parameterTypesToString() {
         result =
         concat(int i | exists(this.getParameter(i)) | this.parameterTypeToString(i), "," order by i)
+    }
+
+    string getFullTypeName(ValueOrRefType t) {
+      result = t.getNamespace().getFullName() + "." + getTypeName(t)
+    }
+
+    /**
+     * Returns the type name and handle nested types.
+     * Example: Outer+Inner
+     */
+    string getTypeName(ValueOrRefType t) {
+      result = getTypeNameRec(t)
+    }
+
+    private string getTypeNameRec(ValueOrRefType t) {
+      // Top-level type
+      result = t.getName()
+        and not t instanceof NestedType
+
+      // Nested type: recurse and append
+      or
+      result = getTypeNameRec(t.getDeclaringType()) + "+" + t.getName()
+        and t instanceof NestedType
     }
 
 }
