@@ -1,8 +1,6 @@
 import csharp
-import GadgetTaintHelpers
-import RequestForgery as RequestForgery 
-import SystemManagement
-import ComponentModel
+import libs.generic.GadgetTaintHelpers
+import libs.generic.sinks.RequestForgery as RequestForgery
 private import semmle.code.csharp.security.dataflow.flowsinks.FlowSinks
 private import semmle.code.csharp.dataflow.internal.ExternalFlow
 import semmle.code.csharp.security.dataflow.UnsafeDeserializationQuery as UnsafeDeserialization

@@ -1,6 +1,6 @@
 import csharp
 import semmle.code.csharp.serialization.Serialization
-import libs.GadgetTaintHelpers
+import libs.generic.GadgetTaintHelpers
 
 /**
  * A type serializable by Newtonsoft.Json, considering typical Json.NET serialization
@@ -103,3 +103,17 @@ class JsonSettersSerilizationCallBack extends JsonSerilizationCallBack, Setter {
       )
     }
 }
+
+class JsonNetSerializableMember extends SerializableMember {
+    JsonNetSerializableMember() {
+      // declaring type does not need to be serializable
+      not this.(Attributable).getAnAttribute().getType() instanceof NotSerializedAttributeClass
+    }
+  }
+
+/** Any attribute class that marks a member to not be serialized. */
+class JsonNetNotSerializedAttributeClass extends NotSerializedAttributeClass {
+    JsonNetNotSerializedAttributeClass() {
+      this.hasName(["JsonIgnoreAttribute"])
+    }
+  }

@@ -4,7 +4,6 @@ import semmle.code.csharp.dataflow.DataFlow
 import semmle.code.csharp.serialization.Serialization
 private import semmle.code.csharp.dataflow.internal.DataFlowPrivate as DataFlowPrivate
 import codeql.util.Unit
-import Sources
 
 class GadgetAdditionalTaintStep extends Unit {
     /**
@@ -78,12 +77,7 @@ class SerializableAssignableTaintStep extends GadgetAdditionalTaintStep {
     }
   }
 
-  class JsonNetSerializableMember extends SerializableMember {
-    JsonNetSerializableMember() {
-      // declaring type does not need to be serializable
-      not this.(Attributable).getAnAttribute().getType() instanceof NotSerializedAttributeClass
-    }
-  }
+  
 
 /*
 private class JsonSerializedMemberAttributeClass extends Class {
@@ -99,11 +93,7 @@ private class JsonSerializedMemberAttributeClass extends Class {
 */
 
 /** Any attribute class that marks a member to not be serialized. */
-class NotSerializedAttributeClass extends Class {
-    NotSerializedAttributeClass() {
-      this.hasName(["JsonIgnoreAttribute", "NonSerializedAttribute"])
-    }
-  }
+abstract class NotSerializedAttributeClass extends Class { }
 
 /** Any attribute class that marks a member to be serialized. */
 class SerializedAttributeClass extends Class {

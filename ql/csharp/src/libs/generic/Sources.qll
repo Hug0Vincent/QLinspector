@@ -1,13 +1,17 @@
 import csharp
-import semmle.code.csharp.serialization.Serialization
-import NewtonsoftJson
 private import semmle.code.csharp.dataflow.internal.DataFlowPrivate as DataFlowPrivate
 import semmle.code.csharp.dispatch.OverridableCallable
+import semmle.code.csharp.serialization.Serialization
 
 /**
  * A data flow source for a gadget.
  */
 abstract class Source extends DataFlow::Node { }
+
+/**
+ * A Source method. It's must be implemented by the different Gadget Types (see BinaryFormatter and JSON.Net).
+ */
+abstract class GadgetSource extends Callable { }
 
 class ParameterSource extends Source {
     ParameterSource(){
@@ -38,6 +42,9 @@ class GetterSource extends Source {
 }
 */
 
+/**
+ * For now it's ok since it's valid for JSON.Net and BinaryFormatter.
+ */
 class ObjectMethodSource extends Source {
     ObjectMethodSource(){
         exists(OverridableCallable baseMethod, SerializableType t |
@@ -45,21 +52,5 @@ class ObjectMethodSource extends Source {
             baseMethod.hasName(["ToString", "GetHashCode", "Equals"]) and
             this.(DataFlowPrivate::InstanceParameterNode).getCallable(_) = baseMethod.getInherited(t)
         )
-    }
-}
-
-class TypeConverterSource extends Source {
-    TypeConverterSource(){
-        exists(OverridableCallable baseMethod, SerializableType t |
-            baseMethod.getDeclaringType().hasFullyQualifiedName("System.ComponentModel", "TypeConverter") and
-            baseMethod.hasName("ConvertFrom") and
-            this.asParameter() = baseMethod.getInherited(t).getParameter(2)
-        )
-    }
-}
-
-class GadgetSource extends Callable {
-    GadgetSource(){
-        this = any(SerializableType s).getAnAutomaticCallback()
     }
 }
