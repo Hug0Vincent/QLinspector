@@ -128,7 +128,7 @@ p.hasName("")
 ```
 
 Or another way:
-```
+```ql
 this.getDeclaringType().hasFullyQualifiedName("", "") and
 this.hasName("") and
 p = this.getParameter(0)
