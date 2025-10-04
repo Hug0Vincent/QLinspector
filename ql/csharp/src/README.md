@@ -77,6 +77,29 @@ Here is an example with the `TextFormattingRunProperties` gadget chain:
 
 ![TextFormattingRunProperties](../../../img/TextFormattingRunProperties.png)
 
+### Restrictions
+
+To speed analysis you can add a restrictions on the source path via regular expressions:
+```ql
+predicate isSource(DataFlow::Node source) {
+    source instanceof Sources::Source
+    and filterSourcePath(source, [".*/my/path/.*", ".*/second/path/.*/Admin.cs"])
+  }
+```
+
+You can also define a ``GadgetSanitizer`` class and apply restrictions to the node to stop exploration in some cases:
+```ql
+class AssignableGadgetSanitizer extends GadgetSanitizer {
+  AssignableGadgetSanitizer() {
+    exists(AssignableMemberAccess acc, AssignableMember m |
+      acc.getTarget() = m and
+      m.getType().hasFullyQualifiedName("System.Windows.Forms", "Control") and
+      this.asExpr() = acc
+    )
+  }
+}
+``` 
+
 ## `DangerousTypeFinder.ql`
 
 If a type is serializable and extends a dangerous one, it becomes a new gadget. This query finds those types.
