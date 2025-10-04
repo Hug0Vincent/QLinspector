@@ -19,6 +19,7 @@ private module GadgetFinderConfig implements DataFlow::ConfigSig {
   
   predicate isSource(DataFlow::Node source) {
     source instanceof Sources::Source
+    //and filterSourcePath(source, [".*/my/path/.*", ".*/second/path/"])
   }
 
   /**

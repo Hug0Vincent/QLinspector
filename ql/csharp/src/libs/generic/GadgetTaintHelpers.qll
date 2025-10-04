@@ -118,6 +118,12 @@ predicate isGenericType(Type t) {
 
 ValueOrRefType getASuperType(ValueOrRefType t) { t.getABaseType() = result }
 
+// https://codeql.github.com/docs/ql-language-reference/predicates/#binding-sets
+bindingset[regExp]
+predicate filterSourcePath(DataFlow::Node n, string regExp){
+  n.getLocation().getFile().getAbsolutePath().regexpMatch(regExp)
+}
+
 /**
  * Try to get a callable from a node.
  * 

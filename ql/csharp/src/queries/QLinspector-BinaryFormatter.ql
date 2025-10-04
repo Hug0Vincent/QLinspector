@@ -13,12 +13,13 @@ import GadgetFinder::PathGraph
 import libs.generic.Sources as Sources
 import libs.generic.DangerousMethods as DangerousMethods
 import libs.generic.GadgetTaintHelpers
-import libs.binaryformatter.Sources
+import libs.binaryformatter.SourcesgetLocation
 
 private module GadgetFinderConfig implements DataFlow::ConfigSig {
   
   predicate isSource(DataFlow::Node source) {
     source instanceof Sources::Source
+    //and filterSourcePath(source, [".*/my/path/.*", ".*/second/path/"])
   }
 
   /**
