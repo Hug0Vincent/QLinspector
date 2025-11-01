@@ -1,11 +1,11 @@
 import csharp
 
-abstract class KnownDangerousType extends Type {}
+abstract class KnownDangerousType extends RefType {}
 
 /**
  * To catch all *Identity gadgets
  */
-class IIdentityType extends Type {
+class IIdentityType extends RefType {
   IIdentityType() {
     this.hasFullyQualifiedName("System.Security.Principal", "IIdentity")
   }
@@ -14,7 +14,7 @@ class IIdentityType extends Type {
 /**
  * To catch all *Principal gadgets
  */
-class IPrincipalType extends Type {
+class IPrincipalType extends RefType {
   IPrincipalType() {
     this.hasFullyQualifiedName("System.Security.Claims", "IPrincipal")
   }

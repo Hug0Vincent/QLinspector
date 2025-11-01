@@ -20,11 +20,11 @@ class GadgetAdditionalTaintStep extends Unit {
  */
 class SerializationInfoGetTaintStep extends GadgetAdditionalTaintStep {
   override predicate step(DataFlow::Node fromNode, DataFlow::Node toNode) {
-    exists(MethodCall mc, Method m |
-      mc.getTarget() = m and
-      m.getName().matches("Get%") and
-      m.getDeclaringType().hasFullyQualifiedName("System.Runtime.Serialization", "SerializationInfo") and
-
+    exists(MethodCall mc |
+      // Directly get the target and check properties inline
+      mc.getTarget().getName().matches("Get%") and
+      mc.getTarget().getDeclaringType().hasFullyQualifiedName("System.Runtime.Serialization", "SerializationInfo") and
+      
       // Taint flows from the qualifier (info) to the call result
       fromNode.asExpr() = mc.getQualifier() and
       toNode.asExpr() = mc
@@ -49,19 +49,17 @@ class SerializationInfoGetTaintStep extends GadgetAdditionalTaintStep {
 class SerializableAssignableTaintStep extends GadgetAdditionalTaintStep {
 
   override predicate step(DataFlow::Node fromNode, DataFlow::Node toNode) {
-    exists(AssignableMemberAccess acc, AssignableMember m |
-      acc.getTarget() = m and
-
-      (
-        m instanceof SerializableMember or
-        acc.getQualifier().getType().hasFullyQualifiedName("System.Runtime.Serialization", _)
-      ) and
-
-      // Taint flows from the qualifier to the member access
+    exists(AssignableMemberAccess acc |
+      isSerializableAccess(acc) and
       fromNode.asExpr() = acc.getQualifier() and
       toNode.asExpr() = acc
     )
   }
+}
+
+private predicate isSerializableAccess(AssignableMemberAccess acc) {
+  acc.getTarget() instanceof SerializableMember or
+  acc.getQualifier().getType().hasFullyQualifiedName("System.Runtime.Serialization", _)
 }
 
 /**
@@ -116,7 +114,27 @@ predicate isGenericType(Type t) {
   t instanceof ObjectType
 }
 
-ValueOrRefType getASuperType(ValueOrRefType t) { t.getABaseType() = result }
+/**
+ * Helper: Gets argument at specified index from a method call.
+ */
+Expr getArgFromMethod(string namespace, string type, string methodName, int argIndex) {
+  exists(MethodCall c |
+     c.getTarget().getDeclaringType().hasFullyQualifiedName(namespace, type) and
+     c.getTarget().hasName(methodName) and
+    result = c.getArgument(argIndex)
+  )
+}
+
+/**
+ * Helper: Gets named argument from a method call.
+ */
+Expr getNamedArgFromMethod(string namespace, string type, string methodName, string argName) {
+  exists(MethodCall c |
+    c.getTarget().getDeclaringType().hasFullyQualifiedName(namespace, type) and
+    c.getTarget().hasName(methodName) and
+    result = c.getArgumentForName(argName)
+  )
+}
 
 // https://codeql.github.com/docs/ql-language-reference/predicates/#binding-sets
 bindingset[regExp]

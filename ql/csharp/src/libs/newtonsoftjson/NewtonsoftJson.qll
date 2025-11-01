@@ -29,22 +29,19 @@ class JsonSerializableType extends SerializableType {
   override Field getASerializedField() {
     result.getDeclaringType() = this and
     (
-      // Has relevant Json.NET attributes (JsonProperty, JsonRequired, JsonIgnore, etc.)
-      exists(Attribute attr | 
-        attr = result.getAnAttribute() and
-        attr.getType().hasName([
-                "JsonPropertyAttribute", "JsonDictionaryAttribute", "JsonRequiredAttribute",
-                "JsonArrayAttribute", "JsonConverterAttribute", "JsonExtensionDataAttribute",
-                "SerializableAttribute", // System.SerializableAttribute
-                "DataMemberAttribute" // System.DataMemberAttribute
-              ])
-      )
+      // Has relevant Json.NET attributes
+      result.getAnAttribute().getType().hasName([
+        "JsonPropertyAttribute", "JsonDictionaryAttribute", "JsonRequiredAttribute",
+        "JsonArrayAttribute", "JsonConverterAttribute", "JsonExtensionDataAttribute",
+        "SerializableAttribute",
+        "DataMemberAttribute"
+      ])
       or
       // Public properties or fields without [JsonIgnore]
       (
-        result.isPublic()
+        result.isPublic() and 
+        not result.getAnAttribute().getType() instanceof NotSerializedAttributeClass
       )
-      and not result.getAnAttribute().getType() instanceof NotSerializedAttributeClass
     )
   }
 }
@@ -67,43 +64,38 @@ class JsonConstructorSerilizationCallBack extends JsonSerilizationCallBack, Cons
     JsonConstructorSerilizationCallBack(){
       this instanceof JsonConstructor
       or
-      // Public parameterless constructor
       (
-        this.getNumberOfParameters() = 0 and 
-        this.isPublic()
-      )
-      or
-      // Single public constructor with parameters
-      (
-        count(Constructor c |c = this.getDeclaringType().getAConstructor()) = 1 and
-        this.isPublic()
+        this.isPublic() and 
+        (
+          // Public parameterless constructor
+          this.getNumberOfParameters() = 0 or
+
+          // Single public constructor with parameters
+          strictcount(this.getDeclaringType().getAConstructor()) = 1
+        )
       )
     }
 }
 
 class JsonDecoratorSerilizationCallBack extends JsonSerilizationCallBack, Method {
     JsonDecoratorSerilizationCallBack(){
-        this.(Attributable).getAnAttribute().getType().hasName("OnDeserializedAttribute") or
-        this.(Attributable).getAnAttribute().getType().hasName("OnDeserializingAttribute")
+        this.(Attributable).getAnAttribute().getType().hasName(["OnDeserializedAttribute", "OnDeserializingAttribute"])
     }
 }
 
 class JsonSettersSerilizationCallBack extends JsonSerilizationCallBack, Setter {
     JsonSettersSerilizationCallBack(){
-        exists(Property p |
-          p.getDeclaringType() = this.getDeclaringType() and
-          p.getSetter() = this and
-          (
-            this.isPublic() or
-            p.getAnAttribute().getType().hasName("JsonPropertyAttribute")
-          ) 
-
-          // JSON.net don't call static setters
-          and not this.isStatic()
+      not this.isStatic() and
+      (
+        this.isPublic() or
+        this.getDeclaration().(Property).getAnAttribute().getType().hasName("JsonPropertyAttribute")
       )
     }
 }
 
+/**
+ * TODO: is it needed ? I already have DefaultSerializableMember.
+ */
 class JsonNetSerializableMember extends SerializableMember {
     JsonNetSerializableMember() {
       // declaring type does not need to be serializable

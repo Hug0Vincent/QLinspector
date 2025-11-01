@@ -11,10 +11,14 @@ class NewtonsoftJsonGadgetSource extends GadgetSource {
 
 class TypeConverterSource extends Source {
     TypeConverterSource(){
-        exists(OverridableCallable baseMethod, SerializableType t |
-            baseMethod.getDeclaringType().hasFullyQualifiedName("System.ComponentModel", "TypeConverter") and
-            baseMethod.hasName("ConvertFrom") and
-            this.asParameter() = baseMethod.getInherited(t).getParameter(2)
-        )
+      exists(Method inherited, SerializableType t |
+        inherited = getTypeConverterConvertFrom().getInherited(t) and
+        this.asParameter() = inherited.getParameter(2)
+      )
     }
+}
+
+private OverridableCallable getTypeConverterConvertFrom() {
+  result.getDeclaringType().hasFullyQualifiedName("System.ComponentModel", "TypeConverter") and
+  result.hasName("ConvertFrom")
 }

@@ -40,72 +40,88 @@ class SystemNetHttpHttpClientClass extends SystemNetHttpClass {
 }
 
 /**
-  * An argument to a `WebRequest.Create` call taken as a
-  * sink for Server Side Request Forgery(SSRF) Vulnerabilities. *
-  */
+ * An argument to a `WebRequest.Create` call taken as a
+ * sink for Server Side Request Forgery (SSRF) Vulnerabilities.
+ */
 private class SystemNetWebRequestCreateSink extends Sink {
   SystemNetWebRequestCreateSink() {
-    exists(Method m |
-      m.getDeclaringType() instanceof SystemNetHttpWebRequestClass and
-      m.hasName("Create")
-    |
-      m.getACall().getArgument(0) = this.asExpr()
+    exists(MethodCall call | call.getArgument(0) = this.asExpr() |
+      call.getTarget().getDeclaringType() instanceof SystemNetHttpWebRequestClass and
+      call.getTarget().hasName("Create")
     )
   }
 }
 
 /**
-  * An argument to a new HTTP Request call of a `System.Net.Http.HttpClient` object
-  * taken as a sink for Server Side Request Forgery(SSRF) Vulnerabilities.
-  */
+ * An argument to an HTTP Request call of a `System.Net.Http.HttpClient` object
+ * taken as a sink for Server Side Request Forgery (SSRF) Vulnerabilities.
+ */
 private class SystemNetHttpClientSink extends Sink {
   SystemNetHttpClientSink() {
-    exists(Method m |
-      m.getDeclaringType() instanceof SystemNetHttpHttpClientClass and
-      m.hasName([
-          "DeleteAsync", "GetAsync", "GetByteArrayAsync", "GetStreamAsync", "GetStringAsync",
-          "PatchAsync", "PostAsync", "PutAsync"
-        ])
-    |
+    exists(HttpClientMethod m |
       m.getACall().getArgument(0) = this.asExpr()
     )
   }
 }
 
 /**
-  * An property assignment for BaseAddress.
-  */
+ * A method on HttpClient that takes a URL as first argument.
+ */
+private class HttpClientMethod extends Method {
+  HttpClientMethod() {
+    this.getDeclaringType().getASuperType*() instanceof SystemNetHttpHttpClientClass and
+    this.hasName([
+      "DeleteAsync", "GetAsync", "GetByteArrayAsync", "GetStreamAsync", "GetStringAsync",
+      "PatchAsync", "PostAsync", "PutAsync"
+    ])
+  }
+}
+
+/**
+ * A property assignment for BaseAddress.
+ */
 private class SystemNetClientBaseAddressSink extends Sink {
   SystemNetClientBaseAddressSink() {
-    exists(Property p, Type t |
+    exists(Property p | p.getAnAssignedValue() = this.asExpr() |
       p.hasName("BaseAddress") and
-      t = p.getDeclaringType() and
-      (
-        t instanceof SystemNetHttpWebClientClass or
-        t instanceof SystemNetHttpHttpClientClass
-      )
-    |
-      p.getAnAssignedValue() = this.asExpr()
+      p.getDeclaringType() instanceof SystemNetHttpClientType
     )
   }
 }
 
 /**
-  * An argument to a new HTTP Request call of a `System.Net.WebClient` object
-  * taken as a sink for Server Side Request Forgery(SSRF) Vulnerabilities.
-  */
+ * A type that has a BaseAddress property (WebClient or HttpClient).
+ */
+private class SystemNetHttpClientType extends Type {
+  SystemNetHttpClientType() {
+    this instanceof SystemNetHttpWebClientClass or
+    this instanceof SystemNetHttpHttpClientClass
+  }
+}
+
+/**
+ * An argument to an HTTP Request call of a `System.Net.WebClient` object
+ * taken as a sink for Server Side Request Forgery (SSRF) Vulnerabilities.
+ */
 private class SystemNetWebClientSink extends Sink {
   SystemNetWebClientSink() {
-    exists(Method m |
-      m.getDeclaringType() instanceof SystemNetHttpWebClientClass and
-      m.hasName([
-          "OpenRead", "OpenReadAsync", "DownloadData", "DownloadDataAsync", "DownloadFile",
-          "DownloadFileAsync", "DownloadString", "DownloadStringAsync", "OpenWrite", 
-          "OpenWriteAsync", "UploadData", "UploadDataAsync", "UploadFile", "UploadFileAsync",
-          "UploadValues", "UploadValuesAsync", "UploadString", "UploadStringAsync"
-        ])
-    |
+    exists(WebClientMethod m |
       m.getACall().getArgument(0) = this.asExpr()
     )
+  }
+}
+
+/**
+ * A method on WebClient that takes a URL as first argument.
+ */
+private class WebClientMethod extends Method {
+  WebClientMethod() {
+    this.getDeclaringType().getASuperType*() instanceof SystemNetHttpWebClientClass and
+    this.hasName([
+      "OpenRead", "OpenReadAsync", "DownloadData", "DownloadDataAsync", "DownloadFile",
+      "DownloadFileAsync", "DownloadString", "DownloadStringAsync", "OpenWrite", 
+      "OpenWriteAsync", "UploadData", "UploadDataAsync", "UploadFile", "UploadFileAsync",
+      "UploadValues", "UploadValuesAsync", "UploadString", "UploadStringAsync"
+    ])
   }
 }

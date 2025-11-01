@@ -47,10 +47,14 @@ class GetterSource extends Source {
  */
 class ObjectMethodSource extends Source {
     ObjectMethodSource(){
-        exists(OverridableCallable baseMethod, SerializableType t |
-            baseMethod.getDeclaringType() instanceof ObjectType and
-            baseMethod.hasName(["ToString", "GetHashCode", "Equals"]) and
-            this.(DataFlowPrivate::InstanceParameterNode).getCallable(_) = baseMethod.getInherited(t)
+        exists(Callable inherited, SerializableType t |
+            inherited = getObjectMethod().getInherited(t) and
+            this.(DataFlowPrivate::InstanceParameterNode).getCallable(_) = inherited
         )
     }
+}
+
+private OverridableCallable getObjectMethod() {
+  result.getDeclaringType() instanceof ObjectType and
+  result.hasName(["ToString", "GetHashCode", "Equals"])
 }
