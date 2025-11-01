@@ -13,7 +13,7 @@ import GadgetFinder::PathGraph
 import libs.generic.Sources as Sources
 import libs.generic.DangerousMethods as DangerousMethods
 import libs.generic.GadgetTaintHelpers
-import libs.binaryformatter.SourcesgetLocation
+import libs.binaryformatter.Sources
 
 private module GadgetFinderConfig implements DataFlow::ConfigSig {
   
