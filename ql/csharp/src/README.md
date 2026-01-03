@@ -69,13 +69,36 @@ This step will loop over each DLLs and perform the following operations:
 
 # Queries
 
-## `QLinspector.ql`
+## `QLinspector-*.ql`
 
 The main CodeQL query that can be used to find gadget chains.
 
 Here is an example with the `TextFormattingRunProperties` gadget chain:
 
 ![TextFormattingRunProperties](../../../img/TextFormattingRunProperties.png)
+
+### Restrictions
+
+To speed analysis you can add a restrictions on the source path via regular expressions:
+```ql
+predicate isSource(DataFlow::Node source) {
+    source instanceof Sources::Source
+    and filterSourcePath(source, [".*/my/path/.*", ".*/second/path/.*/Admin.cs"])
+  }
+```
+
+You can also define a ``GadgetSanitizer`` class and apply restrictions to the node to stop exploration in some cases:
+```ql
+class AssignableGadgetSanitizer extends GadgetSanitizer {
+  AssignableGadgetSanitizer() {
+    exists(AssignableMemberAccess acc, AssignableMember m |
+      acc.getTarget() = m and
+      m.getType().hasFullyQualifiedName("System.Windows.Forms", "Control") and
+      this.asExpr() = acc
+    )
+  }
+}
+``` 
 
 ## `DangerousTypeFinder.ql`
 
@@ -92,6 +115,24 @@ Try to identify potential dangerous types by looking at the string used in `Get*
 Here is an example:
 
 ![ActivationContext](../../../img/SerializationInfoPotentialSinkFinder.png)
+
+## `SinkToModel.ql`
+
+Help writing YAML models. Just modify this to generate the model:
+
+```ql
+this.getDeclaringType().hasFullyQualifiedName("", "") and
+this.hasName("") and
+p = this.getAParameter() and 
+p.hasName("")
+```
+
+Or another way:
+```ql
+this.getDeclaringType().hasFullyQualifiedName("", "") and
+this.hasName("") and
+p = this.getParameter(0)
+```
 
 # Acknowledgements
 

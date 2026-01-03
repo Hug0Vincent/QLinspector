@@ -1,7 +1,7 @@
 /**
- * @id synacktiv/csharp/qlinspector
- * @description find regular C# gadget chains
- * @name C# deserialization gadget finder
+ * @id synacktiv/csharp/qlinspector-binaryformatter
+ * @description find C# gadget chains for BinaryFormatter
+ * @name qlinspector-binaryformatter
  * @kind path-problem
  * @problem.severity warning
  * @tags security
@@ -10,14 +10,16 @@
 import csharp
 import semmle.code.csharp.dataflow.TaintTracking
 import GadgetFinder::PathGraph
-import libs.Sources as Sources
-import libs.DangerousMethods as DangerousMethods
-import libs.GadgetTaintHelpers
+import libs.generic.Sources as Sources
+import libs.generic.DangerousMethods as DangerousMethods
+import libs.generic.GadgetTaintHelpers
+import libs.binaryformatter.Sources
 
 private module GadgetFinderConfig implements DataFlow::ConfigSig {
   
   predicate isSource(DataFlow::Node source) {
     source instanceof Sources::Source
+    //and filterSourcePath(source, [".*/my/path/.*", ".*/second/path/"])
   }
 
   /**
